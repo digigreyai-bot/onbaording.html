@@ -5,9 +5,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py db.py auth.py Procfile README.md ./
+COPY app.py db.py auth.py ./
 COPY templates ./templates
-COPY static ./static
+RUN mkdir -p static
 
 ENV PORT=8000
 EXPOSE 8000
