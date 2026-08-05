@@ -84,19 +84,6 @@
       </fieldset>`;
     }
 
-    function postingTargetHTML(prefix, platforms) {
-      const targetPlatforms = platforms || ["youtube", "facebook", "instagram", "tiktok", "linkedin"];
-      return `
-      <div class="mt-3">
-        <label class="text-sm font-medium block">Where should we post? (optional)</label>
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm mt-1">
-          ${targetPlatforms.map(p =>
-            `<label class="border rounded px-2 py-1"><input type="checkbox" name="${prefix}__platforms" value="${p}" class="mr-1" />${p}</label>`
-          ).join("")}
-        </div>
-      </div>`;
-    }
-
     function sectionAvatar() {
       return `
       <fieldset class="p-4 rounded-xl border bg-white">
@@ -114,7 +101,6 @@
             <p class="text-xs text-slate-500 mt-1">Upload a clear voice recording (MP3/WAV/M4A). About 30–60 seconds recommended.</p>
           </div>
         </div>
-        ${postingTargetHTML("avatar", ["youtube", "facebook", "instagram", "tiktok", "linkedin"])}
       </fieldset>`;
     }
 
@@ -128,7 +114,6 @@
           <div><label class="text-sm font-medium">Brand tagline (optional)</label><input name="smartgrid__tagline" class="w-full border rounded px-3 py-2" /></div>
           <div class="md:col-span-2"><label class="text-sm font-medium">Content sources</label><textarea name="smartgrid__sources" rows="2" class="w-full border rounded px-3 py-2"></textarea></div>
         </div>
-        ${postingTargetHTML("smartgrid", ["facebook", "instagram", "linkedin"])}
       </fieldset>`;
     }
 
