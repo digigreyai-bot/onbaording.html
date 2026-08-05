@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digigrey Client Onboarding</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <style>
+    body { font-family: "Segoe UI", system-ui, sans-serif; }
+    .active-product { background: #0f766e; color: #fff; border-color: #0f766e; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 md:p-8">
+  <div class="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl p-6 md:p-10">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-3xl font-bold text-slate-800">Client Onboarding Form</h1>
+        <p class="text-slate-600 mt-1">Select the products Digigrey set up for you and fill the details in simple steps.</p>
+      </div>
+      <div class="flex gap-2">
+        <button id="btnDownloadMaster" type="button" class="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-semibold">Download Master Excel</button>
+        <button id="btnClearMaster" type="button" class="px-4 py-2 rounded-lg bg-slate-200 text-slate-800 text-sm font-semibold">Clear Master</button>
+      </div>
+    </div>
+
+    <div id="meetingBox" class="mb-6"></div>
+
+    <div id="products" class="flex flex-wrap gap-2 mb-6">
+      <button class="product-btn px-4 py-2 rounded-xl border border-slate-300" data-product="avatar-studio">Avatar Studio</button>
+      <button class="product-btn px-4 py-2 rounded-xl border border-slate-300" data-product="lead-flow-call">LeadFlow</button>
+      <button class="product-btn px-4 py-2 rounded-xl border border-slate-300" data-product="market-pulse">Market Pulse</button>
+      <button class="product-btn px-4 py-2 rounded-xl border border-slate-300" data-product="call-pilot">Call Pilot</button>
+      <button class="product-btn px-4 py-2 rounded-xl border border-slate-300" data-product="smart-grid">Smart Grid</button>
+    </div>
+
+    <div id="formMount" class="min-h-[120px]"></div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "digigrey_onboarding_rows_v1";
+    const selectedProducts = new Set();
+
+    const productButtons = document.querySelectorAll(".product-btn");
+    const formMount = document.getElementById("formMount");
+    const btnDownloadMaster = document.getElementById("btnDownloadMaster");
+    const btnClearMaster = document.getElementById("btnClearMaster");
+
+    function baseInfoHTML() {
+      return `
+      <fieldset class="p-4 rounded-xl border bg-slate-50">
+        <legend class="font-semibold text-teal-700 px-2">1) Basic Information</legend>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label class="text-sm font-medium">Company Name *</label><input required name="common__company" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Phone Number *</label><input required type="tel" name="common__phone" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">City *</label><input required name="common__city" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Country *</label><input required name="common__country" class="w-full border rounded px-3 py-2" /></div>
+        </div>
+      </fieldset>`;
+    }
+
+    function socialConnectSetupHTML() {
+      const needsTikTok = selectedProducts.has("avatar-studio");
+
+      return `
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-teal-700 px-2">2) Social Connect Setup (Important)</legend>
+        <div class="text-sm text-slate-700 space-y-2">
+          <p><strong>Step 1:</strong> Open your secure client connect link.</p>
+          <div>
+            <label class="text-sm font-medium">Client Connect Link *</label>
+            <div class="flex gap-2">
+              <input required type="url" id="connectLinkInput" name="connect__link" placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2" />
+              <button type="button" id="openConnectLinkBtn" class="px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Use this link to connect social accounts. Once completed, connection status updates automatically on the admin dashboard.</p>
+          </div>
+          <p><strong>Step 2:</strong> On that page connect only required platforms for selected products (TikTok / LinkedIn as needed).</p>
+          ${needsTikTok ? `<p><strong>Step 3 (TikTok Sandbox):</strong> TikTok app → Settings → Privacy → <strong>Private account ON</strong>.</p>` : ``}
+          <p><strong>Step ${needsTikTok ? "4" : "3"} (Facebook Page Access):</strong> Facebook Page → Settings → Page setup → Page access → search <strong>Omar Assist</strong> → enable Insights/Ads/Content → Give Access → password confirm.</p>
+          <p><strong>Step ${needsTikTok ? "5" : "4"}:</strong> Keep Instagram linked to that same Facebook Page.</p>
+        </div>
+      </fieldset>`;
+    }
+
+    function postingTargetHTML(prefix, platforms) {
+      const targetPlatforms = platforms || ["youtube", "facebook", "instagram", "tiktok", "linkedin"];
+      return `
+      <div class="mt-3">
+        <label class="text-sm font-medium block">Where should we post? (optional)</label>
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm mt-1">
+          ${targetPlatforms.map(p =>
+            `<label class="border rounded px-2 py-1"><input type="checkbox" name="${prefix}__platforms" value="${p}" class="mr-1" />${p}</label>`
+          ).join("")}
+        </div>
+      </div>`;
+    }
+
+    function sectionAvatar() {
+      return `
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Avatar Studio</legend>
+        <p class="text-sm text-slate-600 mb-2">Flow: news/script → client approve → avatar reel (9:16) → posting.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium">Avatar Video *</label>
+            <input required type="file" name="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Upload a clear face video (MP4/MOV). Prefer front-facing, good lighting, about 10–30 seconds.</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium">Voice Sample *</label>
+            <input required type="file" name="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Upload a clear voice recording (MP3/WAV/M4A). About 30–60 seconds recommended.</p>
+          </div>
+        </div>
+        ${postingTargetHTML("avatar", ["youtube", "facebook", "instagram", "tiktok", "linkedin"])}
+      </fieldset>`;
+    }
+
+    function sectionSmartGrid() {
+      return `
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Smart Grid</legend>
+        <p class="text-sm text-slate-600 mb-2">Images are generated and posted to LinkedIn + Facebook/Instagram. Smart Grid mein YouTube/TikTok use nahi hota.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="text-sm font-medium">Business Logo / Visiting Card</label><input type="file" name="smartgrid__logo" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Brand tagline (optional)</label><input name="smartgrid__tagline" class="w-full border rounded px-3 py-2" /></div>
+          <div class="md:col-span-2"><label class="text-sm font-medium">Content sources</label><textarea name="smartgrid__sources" rows="2" class="w-full border rounded px-3 py-2"></textarea></div>
+        </div>
+        ${postingTargetHTML("smartgrid", ["facebook", "instagram", "linkedin"])}
+      </fieldset>`;
+    }
+
+    function sectionLeadFlowCall() {
+      return `
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">LeadFlow</legend>
+        <p class="text-sm text-slate-600 mb-2">Share your listing/project details so bot call flow can speak correctly.</p>
+        <label class="text-sm font-medium">Current projects (paste in simple bullets)</label>
+        <textarea name="leadflow__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3"></textarea>
+        <label class="text-sm font-medium">Or upload project details file (PDF/DOC/XLS)</label>
+        <input type="file" name="leadflow__projects_file" class="w-full border rounded px-3 py-2 mb-3" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label class="text-sm font-medium">CRM Name (optional)</label><input name="leadflow__crm_name" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">CRM API Key (optional)</label><input type="password" name="leadflow__api" class="w-full border rounded px-3 py-2" /></div>
+        </div>
+      </fieldset>`;
+    }
+
+    function sectionCallPilot() {
+      return `
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Call Pilot</legend>
+        <p class="text-sm text-slate-600 mb-2">Provide project + call script preferences for voice assistant training.</p>
+        <label class="text-sm font-medium">Current projects</label>
+        <textarea name="callpilot__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3"></textarea>
+        <label class="text-sm font-medium">Or upload project details file</label>
+        <input type="file" name="callpilot__projects_file" class="w-full border rounded px-3 py-2 mb-3" />
+      </fieldset>`;
+    }
+
+    function sectionMarketPulse() {
+      return `
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Market Pulse</legend>
+        <p class="text-sm text-slate-600 mb-2">Share sender details and lead sheet for market update campaigns.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="text-sm font-medium">Sender Email *</label><input required type="email" name="marketpulse__email" class="w-full border rounded px-3 py-2" /></div>
+          <div>
+            <label class="text-sm font-medium">Email App Password (2-Step Verification) *</label>
+            <input required type="password" name="marketpulse__app_password" autocomplete="new-password" class="w-full border rounded px-3 py-2" placeholder="16-character app password" />
+            <p class="text-xs text-slate-500 mt-1">Enable 2-Step Verification, then create an App Password (Gmail: Google Account → Security → App passwords). Paste that app password here — not your normal email password.</p>
+            <p class="text-xs text-slate-500 mt-1">Digigrey uses this only to send Market Pulse emails on your behalf. You can revoke the app password anytime in your account security settings.</p>
+          </div>
+          <div><label class="text-sm font-medium">Business Logo / Visiting Card</label><input type="file" name="marketpulse__logo" class="w-full border rounded px-3 py-2" /></div>
+          <div class="md:col-span-2"><label class="text-sm font-medium">Lead Database Spreadsheet (CSV/XLSX/XLS)</label><input type="file" name="marketpulse__leads" class="w-full border rounded px-3 py-2" /></div>
+        </div>
+      </fieldset>`;
+    }
+
+    const sectionRenderers = {
+      "avatar-studio": sectionAvatar,
+      "smart-grid": sectionSmartGrid,
+      "lead-flow-call": sectionLeadFlowCall,
+      "call-pilot": sectionCallPilot,
+      "market-pulse": sectionMarketPulse
+    };
+
+    function shouldShowSocialSetup() {
+      return selectedProducts.has("avatar-studio") || selectedProducts.has("smart-grid");
+    }
+
+    function strategyBoxHTML() {
+      return `
+      <div class="p-4 rounded-xl border bg-teal-50">
+        <h3 class="font-bold text-teal-900">Onboarding Guide Meeting if Needed</h3>
+        <p class="text-sm text-teal-900 mt-1">Schedule a call only if you need help going through onboarding.</p>
+        <a href="https://calendly.com/your-link" target="_blank" class="inline-block mt-2 px-4 py-2 bg-teal-700 text-white rounded-lg">Book Meeting</a>
+      </div>`;
+    }
+
+    function renderForm() {
+      if (!selectedProducts.size) {
+        formMount.innerHTML = `<p class="text-slate-500 text-center py-10">Select at least one product to start.</p>`;
+        return;
+      }
+
+      let html = `<form id="onboardForm" class="space-y-4">`;
+      html += baseInfoHTML();
+      if (shouldShowSocialSetup()) html += socialConnectSetupHTML();
+      [...selectedProducts].forEach(p => { if (sectionRenderers[p]) html += sectionRenderers[p](); });
+      html += `<div class="flex justify-end"><button class="px-8 py-3 rounded-xl bg-teal-800 text-white font-bold" type="submit">Finish & Save Onboarding</button></div>`;
+      html += `</form>`;
+
+      formMount.innerHTML = html;
+      document.getElementById("onboardForm").addEventListener("submit", onSubmitForm);
+      const openConnectBtn = document.getElementById("openConnectLinkBtn");
+      if (openConnectBtn) {
+        openConnectBtn.addEventListener("click", () => {
+          const input = document.getElementById("connectLinkInput");
+          const url = (input && input.value || "").trim();
+          if (!url) {
+            alert("Pehle connect link paste karein.");
+            return;
+          }
+          try {
+            window.open(url, "_blank", "noopener,noreferrer");
+          } catch (e) {
+            alert("Invalid connect link.");
+          }
+        });
+      }
+    }
+
+    function getStoredRows() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function setStoredRows(rows) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+    }
+
+    function toRowObject(form) {
+      const fd = new FormData(form);
+      const row = { submitted_at: new Date().toISOString() };
+      row.products = [...selectedProducts].join(", ");
+
+      for (const [k, v] of fd.entries()) {
+        if (v instanceof File) {
+          row[k] = v && v.name ? v.name : "";
+        } else {
+          if (Object.prototype.hasOwnProperty.call(row, k)) {
+            row[k] = String(row[k]) + " | " + String(v);
+          } else {
+            row[k] = String(v);
+          }
+        }
+      }
+      return row;
+    }
+
+    function exportMasterExcel(rows) {
+      if (!rows.length) {
+        alert("No onboarding data saved yet.");
+        return;
+      }
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Clients");
+      XLSX.writeFile(wb, "Digigrey_Onboarding_Master.xlsx");
+    }
+
+    function onSubmitForm(e) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const row = toRowObject(form);
+      const rows = getStoredRows();
+      rows.push(row);
+      setStoredRows(rows);
+      exportMasterExcel(rows);
+      alert("Saved — Master Excel downloaded. Digigrey team will use this sheet.");
+      form.reset();
+      selectedProducts.clear();
+      productButtons.forEach(btn => btn.classList.remove("active-product"));
+      renderForm();
+    }
+
+    productButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.product;
+        if (selectedProducts.has(key)) {
+          selectedProducts.delete(key);
+          btn.classList.remove("active-product");
+        } else {
+          selectedProducts.add(key);
+          btn.classList.add("active-product");
+        }
+        renderForm();
+      });
+    });
+
+    btnDownloadMaster.addEventListener("click", () => exportMasterExcel(getStoredRows()));
+    btnClearMaster.addEventListener("click", () => {
+      if (!confirm("Are you sure? This will remove all saved onboarding rows from this browser.")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      alert("Master onboarding data cleared from this browser.");
+    });
+
+    renderForm();
+    document.getElementById("meetingBox").innerHTML = strategyBoxHTML();
+  </script>
+</body>
+</html>
