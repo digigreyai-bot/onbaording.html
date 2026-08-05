@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Admin Login — Digigrey Onboarding{% endblock %}
+{% block body %}
+<div class="max-w-md mx-auto mt-16 bg-white rounded-2xl shadow-xl p-8">
+  <h1 class="text-2xl font-bold text-slate-800">Digigrey Onboarding Admin</h1>
+  <p class="text-slate-600 text-sm mt-1">Sign in to create client form links and review submissions.</p>
+  {% if error %}
+  <p class="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{{ error }}</p>
+  {% endif %}
+  <form method="post" action="/admin/login" class="mt-6 space-y-4">
+    <div>
+      <label class="text-sm font-medium">Admin password</label>
+      <input type="password" name="password" required class="w-full border rounded px-3 py-2 mt-1" autocomplete="current-password" />
+    </div>
+    <button type="submit" class="w-full px-4 py-2 rounded-lg bg-teal-800 text-white font-semibold">Sign in</button>
+  </form>
+</div>
+{% endblock %}
