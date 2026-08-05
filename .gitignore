@@ -1,4 +1,3 @@
-runtime.txt
 data/
 .venv/
 __pycache__/
