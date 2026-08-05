@@ -41,6 +41,43 @@
   <script>
     const STORAGE_KEY = "digigrey_onboarding_rows_v1";
     const selectedProducts = new Set();
+    const urlParams = new URLSearchParams(window.location.search);
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function getPresetConnectLink() {
+      return (urlParams.get("connect") || "").trim();
+    }
+
+    function applyProductsFromUrl() {
+      const raw = (urlParams.get("products") || "").trim();
+      if (!raw) return;
+      raw.split(",").map(s => s.trim()).filter(Boolean).forEach(key => {
+        const btn = document.querySelector(`.product-btn[data-product="${key}"]`);
+        if (btn) {
+          selectedProducts.add(key);
+          btn.classList.add("active-product");
+        }
+      });
+    }
+
+    function buildClientFormShareUrl(connectUrl) {
+      const u = new URL(window.location.href);
+      u.search = "";
+      u.hash = "";
+      // Prefer clean path ending (index.html or /)
+      const params = new URLSearchParams();
+      params.set("connect", connectUrl);
+      if (selectedProducts.size) params.set("products", [...selectedProducts].join(","));
+      u.search = params.toString();
+      return u.toString();
+    }
 
     const productButtons = document.querySelectorAll(".product-btn");
     const formMount = document.getElementById("formMount");
@@ -62,19 +99,29 @@
 
     function socialConnectSetupHTML() {
       const needsTikTok = selectedProducts.has("avatar-studio");
+      const presetConnect = getPresetConnectLink();
+      const isClientLink = Boolean(presetConnect);
+      const readonlyAttr = isClientLink ? "readonly" : "";
+      const valueAttr = presetConnect ? `value="${escapeHtml(presetConnect)}"` : "";
 
       return `
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-teal-700 px-2">2) Social Connect Setup (Important)</legend>
         <div class="text-sm text-slate-700 space-y-2">
-          <p><strong>Step 1:</strong> Open your secure client connect link.</p>
+          <p><strong>Step 1:</strong> ${isClientLink
+            ? "Open your secure connect link below (Digigrey already added it for you)."
+            : "Admin: paste the client connect link, then copy the client form link to WhatsApp."}</p>
           <div>
-            <label class="text-sm font-medium">Client Connect Link *</label>
-            <div class="flex gap-2">
-              <input required type="url" id="connectLinkInput" name="connect__link" placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2" />
+            <label class="text-sm font-medium">${isClientLink ? "Your Connect Link *" : "Client Connect Link (Admin paste) *"}</label>
+            <div class="flex flex-wrap gap-2">
+              <input required type="url" id="connectLinkInput" name="connect__link" ${readonlyAttr} ${valueAttr}
+                placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2 ${isClientLink ? "bg-slate-100" : ""}" />
               <button type="button" id="openConnectLinkBtn" class="px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
+              ${isClientLink ? "" : `<button type="button" id="copyClientFormLinkBtn" class="px-3 py-2 rounded bg-teal-700 text-white text-xs whitespace-nowrap">Copy client form link</button>`}
             </div>
-            <p class="text-xs text-slate-500 mt-1">Use this link to connect social accounts. Once completed, connection status updates automatically on the admin dashboard.</p>
+            <p class="text-xs text-slate-500 mt-1">${isClientLink
+              ? "Tap Open Link, connect your social accounts, then continue this form."
+              : "After pasting the connect link, click Copy client form link and send that URL to the client. They will open this full form with the link already filled."}</p>
           </div>
           <p><strong>Step 2:</strong> On that page connect only required platforms for selected products (TikTok / LinkedIn as needed).</p>
           ${needsTikTok ? `<p><strong>Step 3 (TikTok Sandbox):</strong> TikTok app → Settings → Privacy → <strong>Private account ON</strong>.</p>` : ``}
@@ -216,6 +263,29 @@
           }
         });
       }
+      const copyClientBtn = document.getElementById("copyClientFormLinkBtn");
+      if (copyClientBtn) {
+        copyClientBtn.addEventListener("click", async () => {
+          const input = document.getElementById("connectLinkInput");
+          const connectUrl = (input && input.value || "").trim();
+          if (!connectUrl) {
+            alert("Pehle client ka connect link paste karein.");
+            return;
+          }
+          if (!selectedProducts.size) {
+            alert("Pehle products select karein jo client ke form mein hon.");
+            return;
+          }
+          const shareUrl = buildClientFormShareUrl(connectUrl);
+          try {
+            await navigator.clipboard.writeText(shareUrl);
+            copyClientBtn.textContent = "Copied!";
+            setTimeout(() => { copyClientBtn.textContent = "Copy client form link"; }, 1500);
+          } catch (e) {
+            prompt("Copy this client form link:", shareUrl);
+          }
+        });
+      }
     }
 
     function getStoredRows() {
@@ -296,6 +366,7 @@
       alert("Master onboarding data cleared from this browser.");
     });
 
+    applyProductsFromUrl();
     renderForm();
     document.getElementById("meetingBox").innerHTML = strategyBoxHTML();
   </script>
