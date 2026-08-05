@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+{% block title %}Client Onboarding — Digigrey{% endblock %}
+{% block body %}
+<div class="max-w-6xl mx-auto p-4 md:p-8">
+  <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10">
+    <h1 class="text-3xl font-bold text-slate-800">Client Onboarding Form</h1>
+    <p class="text-slate-600 mt-1">Digigrey set up these products for you. Fill the details below.</p>
+
+    <div class="p-4 rounded-xl border bg-teal-50 mt-6 mb-6">
+      <h3 class="font-bold text-teal-900">Onboarding Guide Meeting if Needed</h3>
+      <p class="text-sm text-teal-900 mt-1">Schedule a call only if you need help going through onboarding.</p>
+      <a href="https://calendly.com/your-link" target="_blank" class="inline-block mt-2 px-4 py-2 bg-teal-700 text-white rounded-lg">Book Meeting</a>
+    </div>
+
+    <div class="flex flex-wrap gap-2 mb-6">
+      {% for key in products %}
+      <span class="px-4 py-2 rounded-xl bg-teal-700 text-white text-sm font-semibold">{{ product_labels.get(key, key) }}</span>
+      {% endfor %}
+    </div>
+
+    {% if error %}
+    <p class="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/o/{{ token }}" enctype="multipart/form-data" class="space-y-4">
+      <fieldset class="p-4 rounded-xl border bg-slate-50">
+        <legend class="font-semibold text-teal-700 px-2">1) Basic Information</legend>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label class="text-sm font-medium">Company Name *</label><input required name="common__company" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Phone Number *</label><input required type="tel" name="common__phone" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">City *</label><input required name="common__city" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Country *</label><input required name="common__country" class="w-full border rounded px-3 py-2" /></div>
+        </div>
+      </fieldset>
+
+      {% if show_social %}
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-teal-700 px-2">2) Social Connect Setup (Important)</legend>
+        <div class="text-sm text-slate-700 space-y-2">
+          <p><strong>Step 1:</strong> Open your secure connect link (Digigrey already added it for you).</p>
+          <div>
+            <label class="text-sm font-medium">Your Connect Link</label>
+            <div class="flex flex-wrap gap-2 mt-1">
+              <input readonly id="connectLinkInput" value="{{ connect_url }}" class="w-full border rounded px-3 py-2 bg-slate-100" />
+              <button type="button" id="openConnectLinkBtn" class="px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Tap Open Link, connect your social accounts, then continue this form.</p>
+          </div>
+          <p><strong>Step 2:</strong> On that page connect only required platforms for selected products (TikTok / LinkedIn as needed).</p>
+          {% if "avatar-studio" in products %}
+          <p><strong>Step 3 (TikTok):</strong> After connecting, you can post publicly (app is live).</p>
+          {% endif %}
+          <p><strong>Step {% if "avatar-studio" in products %}4{% else %}3{% endif %} (Facebook Page Access):</strong> Facebook Page → Settings → Page setup → Page access → search <strong>Omar Assist</strong> → enable Insights/Ads/Content → Give Access → password confirm.</p>
+          <p><strong>Step {% if "avatar-studio" in products %}5{% else %}4{% endif %}:</strong> Keep Instagram linked to that same Facebook Page.</p>
+        </div>
+      </fieldset>
+      {% endif %}
+
+      {% if "avatar-studio" in products %}
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Avatar Studio</legend>
+        <p class="text-sm text-slate-600 mb-2">Flow: news/script → client approve → avatar reel (9:16) → posting.</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="text-sm font-medium">Avatar Video *</label>
+            <input required type="file" name="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Clear face video (MP4/MOV), ~10–30 seconds.</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium">Voice Sample *</label>
+            <input required type="file" name="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Clear voice recording, ~30–60 seconds.</p>
+          </div>
+        </div>
+      </fieldset>
+      {% endif %}
+
+      {% if "smart-grid" in products %}
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Smart Grid</legend>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="text-sm font-medium">Business Logo / Visiting Card</label><input type="file" name="smartgrid__logo" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Brand tagline (optional)</label><input name="smartgrid__tagline" class="w-full border rounded px-3 py-2" /></div>
+          <div class="md:col-span-2"><label class="text-sm font-medium">Content sources</label><textarea name="smartgrid__sources" rows="2" class="w-full border rounded px-3 py-2"></textarea></div>
+        </div>
+      </fieldset>
+      {% endif %}
+
+      {% if "lead-flow-call" in products %}
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">LeadFlow</legend>
+        <label class="text-sm font-medium">Current projects (paste in simple bullets)</label>
+        <textarea name="leadflow__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3"></textarea>
+        <label class="text-sm font-medium">Or upload project details file (PDF/DOC/XLS)</label>
+        <input type="file" name="leadflow__projects_file" class="w-full border rounded px-3 py-2 mb-3" />
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div><label class="text-sm font-medium">CRM Name (optional)</label><input name="leadflow__crm_name" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">CRM API Key (optional)</label><input type="password" name="leadflow__api" class="w-full border rounded px-3 py-2" /></div>
+        </div>
+      </fieldset>
+      {% endif %}
+
+      {% if "call-pilot" in products %}
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Call Pilot</legend>
+        <label class="text-sm font-medium">Current projects</label>
+        <textarea name="callpilot__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3"></textarea>
+        <label class="text-sm font-medium">Or upload project details file</label>
+        <input type="file" name="callpilot__projects_file" class="w-full border rounded px-3 py-2 mb-3" />
+      </fieldset>
+      {% endif %}
+
+      {% if "market-pulse" in products %}
+      <fieldset class="p-4 rounded-xl border bg-white">
+        <legend class="font-semibold text-slate-800 px-2">Market Pulse</legend>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="text-sm font-medium">Sender Email *</label><input required type="email" name="marketpulse__email" class="w-full border rounded px-3 py-2" /></div>
+          <div>
+            <label class="text-sm font-medium">Email App Password *</label>
+            <input required type="password" name="marketpulse__app_password" autocomplete="new-password" class="w-full border rounded px-3 py-2" placeholder="16-character app password" />
+            <p class="text-xs text-slate-500 mt-1">Use an App Password (not your normal email password).</p>
+          </div>
+          <div><label class="text-sm font-medium">Business Logo / Visiting Card</label><input type="file" name="marketpulse__logo" class="w-full border rounded px-3 py-2" /></div>
+          <div class="md:col-span-2"><label class="text-sm font-medium">Lead Database Spreadsheet (CSV/XLSX/XLS)</label><input type="file" name="marketpulse__leads" class="w-full border rounded px-3 py-2" /></div>
+        </div>
+      </fieldset>
+      {% endif %}
+
+      <div class="flex justify-end">
+        <button class="px-8 py-3 rounded-xl bg-teal-800 text-white font-bold" type="submit">Submit Onboarding</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script>
+  const openBtn = document.getElementById("openConnectLinkBtn");
+  if (openBtn) {
+    openBtn.addEventListener("click", () => {
+      const url = (document.getElementById("connectLinkInput").value || "").trim();
+      if (!url) { alert("Connect link missing. Contact Digigrey."); return; }
+      window.open(url, "_blank", "noopener,noreferrer");
+    });
+  }
+</script>
+{% endblock %}
