@@ -29,12 +29,21 @@
         </ul>
       </div>
       <div class="p-4 rounded-xl border">
-        <h3 class="font-semibold mb-2">Connect URL</h3>
-        {% if invite.connect_url %}
-        <a class="text-teal-800 break-all underline" href="{{ invite.connect_url }}" target="_blank">{{ invite.connect_url }}</a>
-        {% else %}
-        <p class="text-slate-500">—</p>
-        {% endif %}
+        <h3 class="font-semibold mb-2">Connect links</h3>
+        <ul class="space-y-2">
+          {% if invite.connect_url_avatar %}
+          <li><span class="text-slate-600">Avatar Studio:</span><br /><a class="text-teal-800 break-all underline" href="{{ invite.connect_url_avatar }}" target="_blank">{{ invite.connect_url_avatar }}</a></li>
+          {% endif %}
+          {% if invite.connect_url_vtour %}
+          <li><span class="text-slate-600">VTour:</span><br /><a class="text-teal-800 break-all underline" href="{{ invite.connect_url_vtour }}" target="_blank">{{ invite.connect_url_vtour }}</a></li>
+          {% endif %}
+          {% if invite.connect_url_smartgrid %}
+          <li><span class="text-slate-600">Smart Grid:</span><br /><a class="text-teal-800 break-all underline" href="{{ invite.connect_url_smartgrid }}" target="_blank">{{ invite.connect_url_smartgrid }}</a></li>
+          {% endif %}
+          {% if not invite.connect_url_avatar and not invite.connect_url_vtour and not invite.connect_url_smartgrid %}
+          <li class="text-slate-500">—</li>
+          {% endif %}
+        </ul>
       </div>
     </div>
 

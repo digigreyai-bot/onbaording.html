@@ -22,24 +22,35 @@
 
     <section class="p-4 rounded-xl border bg-slate-50 mb-8">
       <h2 class="font-semibold text-teal-800 mb-3">Create client invite</h2>
-      <form method="post" action="/admin/invites" class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="text-sm font-medium">Client label *</label>
-            <input required name="label" placeholder="e.g. Asim / ABC Realty" class="w-full border rounded px-3 py-2" />
-          </div>
-          <div>
-            <label class="text-sm font-medium">Connect URL (VTour / Avatar)</label>
-            <input type="url" name="connect_url" placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2" />
-            <p class="text-xs text-slate-500 mt-1">Required when Avatar Studio or Smart Grid is selected.</p>
-          </div>
+      <form method="post" action="/admin/invites" class="space-y-4" id="createInviteForm">
+        <div>
+          <label class="text-sm font-medium">Client label *</label>
+          <input required name="label" placeholder="e.g. Asim / ABC Realty" class="w-full border rounded px-3 py-2" />
         </div>
         <div>
           <label class="text-sm font-medium block mb-2">Products *</label>
           <div class="flex flex-wrap gap-3 text-sm">
             {% for key, label in product_options %}
-            <label class="border rounded px-3 py-2 bg-white"><input type="checkbox" name="products" value="{{ key }}" class="mr-2" />{{ label }}</label>
+            <label class="border rounded px-3 py-2 bg-white"><input type="checkbox" name="products" value="{{ key }}" class="mr-2 product-check" data-product="{{ key }}" />{{ label }}</label>
             {% endfor %}
+          </div>
+        </div>
+        <div class="space-y-3">
+          <h3 class="text-sm font-semibold text-slate-700">Connect links</h3>
+          <div>
+            <label class="text-sm font-medium">1) Avatar Studio connect link</label>
+            <input type="url" name="connect_url_avatar" placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Required when Avatar Studio product is selected.</p>
+          </div>
+          <div>
+            <label class="text-sm font-medium">2) VTour connect link</label>
+            <input type="url" name="connect_url_vtour" placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Optional — if filled, client form pe dikhega; empty ho to nahi.</p>
+          </div>
+          <div id="smartGridLinkBox" class="hidden">
+            <label class="text-sm font-medium">3) Smart Grid connect link</label>
+            <input type="url" name="connect_url_smartgrid" id="smartGridLinkInput" placeholder="https://.../connect?t=..." class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Required when Smart Grid is selected.</p>
           </div>
         </div>
         <button type="submit" class="px-5 py-2 rounded-lg bg-teal-800 text-white font-semibold">Create &amp; get form link</button>
@@ -87,4 +98,22 @@
     </section>
   </div>
 </div>
+<script>
+  function syncSmartGridLinkBox() {
+    const checked = document.querySelector('.product-check[data-product="smart-grid"]');
+    const box = document.getElementById("smartGridLinkBox");
+    const input = document.getElementById("smartGridLinkInput");
+    if (!checked || !box) return;
+    if (checked.checked) {
+      box.classList.remove("hidden");
+    } else {
+      box.classList.add("hidden");
+      if (input) input.value = "";
+    }
+  }
+  document.querySelectorAll(".product-check").forEach(el => {
+    el.addEventListener("change", syncSmartGridLinkBox);
+  });
+  syncSmartGridLinkBox();
+</script>
 {% endblock %}

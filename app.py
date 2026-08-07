@@ -27,7 +27,6 @@ PRODUCT_OPTIONS = [
     ("smart-grid", "Smart Grid"),
 ]
 PRODUCT_LABELS = dict(PRODUCT_OPTIONS)
-SOCIAL_PRODUCTS = {"avatar-studio", "smart-grid"}
 FILE_FIELDS = {
     "avatar__video",
     "avatar__voice_sample",
@@ -75,6 +74,18 @@ def safe_filename(name: str) -> str:
     base = Path(name or "file").name
     base = re.sub(r"[^\w.\-]+", "_", base).strip("._") or "file"
     return base[:180]
+
+
+def client_connect_context(invite: dict) -> dict:
+    avatar = (invite.get("connect_url_avatar") or "").strip()
+    vtour = (invite.get("connect_url_vtour") or "").strip()
+    smart = (invite.get("connect_url_smartgrid") or "").strip()
+    return {
+        "connect_url_avatar": avatar,
+        "connect_url_vtour": vtour,
+        "connect_url_smartgrid": smart,
+        "show_social": bool(avatar or vtour or smart),
+    }
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -140,7 +151,9 @@ def admin_home(request: Request, notice: Optional[str] = None, error: Optional[s
 async def admin_create_invite(
     request: Request,
     label: str = Form(...),
-    connect_url: str = Form(""),
+    connect_url_avatar: str = Form(""),
+    connect_url_vtour: str = Form(""),
+    connect_url_smartgrid: str = Form(""),
     products: List[str] = Form([]),
 ):
     if not auth.is_admin(request):
@@ -148,19 +161,28 @@ async def admin_create_invite(
 
     label = (label or "").strip()
     products = [p for p in products if p in PRODUCT_LABELS]
-    connect_url = (connect_url or "").strip()
+    avatar = (connect_url_avatar or "").strip()
+    vtour = (connect_url_vtour or "").strip()
+    smart = (connect_url_smartgrid or "").strip()
 
     if not label:
         return admin_home(request, error="Client label is required.")
     if not products:
         return admin_home(request, error="Select at least one product.")
-    if SOCIAL_PRODUCTS.intersection(products) and not connect_url:
-        return admin_home(
-            request,
-            error="Connect URL required when Avatar Studio or Smart Grid is selected.",
-        )
+    if "avatar-studio" in products and not avatar:
+        return admin_home(request, error="Avatar Studio connect link is required when Avatar Studio is selected.")
+    if "smart-grid" in products and not smart:
+        return admin_home(request, error="Smart Grid connect link is required when Smart Grid is selected.")
+    if "smart-grid" not in products:
+        smart = ""
 
-    invite = db.create_invite(label, products, connect_url or None)
+    invite = db.create_invite(
+        label,
+        products,
+        connect_url_avatar=avatar or None,
+        connect_url_vtour=vtour or None,
+        connect_url_smartgrid=smart or None,
+    )
     return RedirectResponse(f"/admin/invites/{invite['id']}", status_code=303)
 
 
@@ -208,6 +230,7 @@ def client_form_get(request: Request, token: str):
     if invite["status"] == "submitted":
         return templates.TemplateResponse("already_submitted.html", {"request": request})
     products = invite.get("products") or []
+    ctx = client_connect_context(invite)
     return templates.TemplateResponse(
         "client_form.html",
         {
@@ -215,8 +238,7 @@ def client_form_get(request: Request, token: str):
             "token": token,
             "products": products,
             "product_labels": PRODUCT_LABELS,
-            "connect_url": invite.get("connect_url") or "",
-            "show_social": bool(SOCIAL_PRODUCTS.intersection(products)),
+            **ctx,
             "error": None,
         },
     )
@@ -239,6 +261,7 @@ async def client_form_post(request: Request, token: str):
     country = str(form.get("common__country") or "").strip()
 
     def render_error(msg: str):
+        ctx = client_connect_context(invite)
         return templates.TemplateResponse(
             "client_form.html",
             {
@@ -246,8 +269,7 @@ async def client_form_post(request: Request, token: str):
                 "token": token,
                 "products": products,
                 "product_labels": PRODUCT_LABELS,
-                "connect_url": invite.get("connect_url") or "",
-                "show_social": bool(SOCIAL_PRODUCTS.intersection(products)),
+                **ctx,
                 "error": msg,
             },
             status_code=400,

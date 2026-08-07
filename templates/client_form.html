@@ -36,16 +36,40 @@
       {% if show_social %}
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-teal-700 px-2">2) Social Connect Setup (Important)</legend>
-        <div class="text-sm text-slate-700 space-y-2">
-          <p><strong>Step 1:</strong> Open your secure connect link (Digigrey already added it for you).</p>
+        <div class="text-sm text-slate-700 space-y-4">
+          <p><strong>Step 1:</strong> Open each connect link Digigrey added for you (Open Link).</p>
+
+          {% if connect_url_avatar %}
           <div>
-            <label class="text-sm font-medium">Your Connect Link</label>
+            <label class="text-sm font-medium">Avatar Studio connect link</label>
             <div class="flex flex-wrap gap-2 mt-1">
-              <input readonly id="connectLinkInput" value="{{ connect_url }}" class="w-full border rounded px-3 py-2 bg-slate-100" />
-              <button type="button" id="openConnectLinkBtn" class="px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
+              <input readonly value="{{ connect_url_avatar }}" class="connect-link-input w-full border rounded px-3 py-2 bg-slate-100" />
+              <button type="button" class="open-connect-btn px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
             </div>
-            <p class="text-xs text-slate-500 mt-1">Tap Open Link, connect your social accounts, then continue this form.</p>
           </div>
+          {% endif %}
+
+          {% if connect_url_vtour %}
+          <div>
+            <label class="text-sm font-medium">VTour connect link</label>
+            <div class="flex flex-wrap gap-2 mt-1">
+              <input readonly value="{{ connect_url_vtour }}" class="connect-link-input w-full border rounded px-3 py-2 bg-slate-100" />
+              <button type="button" class="open-connect-btn px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if connect_url_smartgrid %}
+          <div>
+            <label class="text-sm font-medium">Smart Grid connect link</label>
+            <div class="flex flex-wrap gap-2 mt-1">
+              <input readonly value="{{ connect_url_smartgrid }}" class="connect-link-input w-full border rounded px-3 py-2 bg-slate-100" />
+              <button type="button" class="open-connect-btn px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
+            </div>
+          </div>
+          {% endif %}
+
+          <p class="text-xs text-slate-500">Tap Open Link, connect your social accounts, then continue this form.</p>
           <p><strong>Step 2:</strong> On that page connect only required platforms for selected products (TikTok / LinkedIn as needed).</p>
           {% if "avatar-studio" in products %}
           <p><strong>Step 3 (TikTok):</strong> After connecting, you can post publicly (app is live).</p>
@@ -133,13 +157,14 @@
   </div>
 </div>
 <script>
-  const openBtn = document.getElementById("openConnectLinkBtn");
-  if (openBtn) {
-    openBtn.addEventListener("click", () => {
-      const url = (document.getElementById("connectLinkInput").value || "").trim();
+  document.querySelectorAll(".open-connect-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const wrap = btn.closest("div");
+      const input = wrap && wrap.querySelector(".connect-link-input");
+      const url = (input && input.value || "").trim();
       if (!url) { alert("Connect link missing. Contact Digigrey."); return; }
       window.open(url, "_blank", "noopener,noreferrer");
     });
-  }
+  });
 </script>
 {% endblock %}

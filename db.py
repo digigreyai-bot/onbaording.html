@@ -41,6 +41,11 @@ def connect():
         conn.close()
 
 
+def _table_columns(conn: sqlite3.Connection, table: str) -> set:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    return {r[1] for r in rows}
+
+
 def init_db() -> None:
     with connect() as conn:
         conn.executescript(
@@ -70,6 +75,24 @@ def init_db() -> None:
             );
             """
         )
+        cols = _table_columns(conn, "invites")
+        for col in ("connect_url_avatar", "connect_url_vtour", "connect_url_smartgrid"):
+            if col not in cols:
+                conn.execute(f"ALTER TABLE invites ADD COLUMN {col} TEXT")
+
+
+def _normalize_connect_urls(d: Dict[str, Any]) -> Dict[str, Any]:
+    """Map legacy connect_url → avatar when new columns are empty."""
+    avatar = (d.get("connect_url_avatar") or "").strip()
+    vtour = (d.get("connect_url_vtour") or "").strip()
+    smart = (d.get("connect_url_smartgrid") or "").strip()
+    legacy = (d.get("connect_url") or "").strip()
+    if not avatar and legacy:
+        avatar = legacy
+    d["connect_url_avatar"] = avatar or None
+    d["connect_url_vtour"] = vtour or None
+    d["connect_url_smartgrid"] = smart or None
+    return d
 
 
 def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
@@ -91,19 +114,43 @@ def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
             d["files"] = json.loads(d["files_json"])
         except json.JSONDecodeError:
             d["files"] = {}
+    if "token" in d or "label" in d:
+        d = _normalize_connect_urls(d)
     return d
 
 
-def create_invite(label: str, products: Iterable[str], connect_url: Optional[str]) -> Dict[str, Any]:
+def create_invite(
+    label: str,
+    products: Iterable[str],
+    connect_url_avatar: Optional[str] = None,
+    connect_url_vtour: Optional[str] = None,
+    connect_url_smartgrid: Optional[str] = None,
+) -> Dict[str, Any]:
     token = secrets.token_urlsafe(24)
     products_list = list(products)
+    avatar = (connect_url_avatar or "").strip() or None
+    vtour = (connect_url_vtour or "").strip() or None
+    smart = (connect_url_smartgrid or "").strip() or None
     with connect() as conn:
         cur = conn.execute(
             """
-            INSERT INTO invites (token, label, products, connect_url, status, created_at)
-            VALUES (?, ?, ?, ?, 'pending', ?)
+            INSERT INTO invites (
+              token, label, products, connect_url,
+              connect_url_avatar, connect_url_vtour, connect_url_smartgrid,
+              status, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
             """,
-            (token, label.strip(), json.dumps(products_list), (connect_url or "").strip() or None, utc_now()),
+            (
+                token,
+                label.strip(),
+                json.dumps(products_list),
+                avatar,  # legacy column mirrors avatar for old readers
+                avatar,
+                vtour,
+                smart,
+                utc_now(),
+            ),
         )
         invite_id = cur.lastrowid
     return get_invite(invite_id)
