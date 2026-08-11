@@ -195,8 +195,9 @@
       </fieldset>
       {% endif %}
 
-      <div class="flex justify-end">
-        <button class="px-8 py-3 rounded-xl bg-teal-800 text-white font-bold" type="submit">Save / Submit Onboarding</button>
+      <div class="flex flex-col items-end gap-2">
+        <p id="uploadProgress" class="text-sm text-teal-800 hidden"></p>
+        <button id="submitBtn" class="px-8 py-3 rounded-xl bg-teal-800 text-white font-bold" type="submit">Save / Submit Onboarding</button>
       </div>
     </form>
   </div>
@@ -211,5 +212,93 @@
       window.open(url, "_blank", "noopener,noreferrer");
     });
   });
+
+  // Large Mac/phone videos: upload in small chunks so client never cares about MB limits.
+  const CHUNK_BYTES = 4 * 1024 * 1024;
+  const formEl = document.querySelector("form");
+  const progressEl = document.getElementById("uploadProgress");
+  const submitBtn = document.getElementById("submitBtn");
+  const token = {{ token | tojson }};
+
+  function setProgress(msg) {
+    if (!progressEl) return;
+    if (!msg) {
+      progressEl.classList.add("hidden");
+      progressEl.textContent = "";
+      return;
+    }
+    progressEl.classList.remove("hidden");
+    progressEl.textContent = msg;
+  }
+
+  function newUploadId() {
+    return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+
+  async function uploadFileChunked(file, fieldName) {
+    const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_BYTES));
+    const uploadId = newUploadId();
+    let storedName = null;
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_BYTES;
+      const blob = file.slice(start, Math.min(file.size, start + CHUNK_BYTES));
+      const body = new FormData();
+      body.append("field", fieldName);
+      body.append("upload_id", uploadId);
+      body.append("chunk_index", String(i));
+      body.append("total_chunks", String(totalChunks));
+      body.append("filename", file.name);
+      body.append("chunk", blob, file.name);
+      const res = await fetch("/o/" + encodeURIComponent(token) + "/upload-chunk", {
+        method: "POST",
+        body,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error((data && data.error) || ("Upload failed for " + file.name));
+      }
+      const pct = Math.round(((i + 1) / totalChunks) * 100);
+      setProgress("Uploading " + file.name + "… " + pct + "%");
+      if (data.done) storedName = data.stored_name;
+    }
+    if (!storedName) throw new Error("Upload did not finish: " + file.name);
+    return storedName;
+  }
+
+  if (formEl) {
+    formEl.addEventListener("submit", async (ev) => {
+      const fileInputs = Array.from(formEl.querySelectorAll('input[type="file"]'));
+      const toUpload = fileInputs.filter(inp => inp.files && inp.files[0]);
+      if (!toUpload.length) return;
+
+      ev.preventDefault();
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Uploading…";
+      }
+      try {
+        formEl.querySelectorAll('input[name^="preuploaded__"]').forEach(el => el.remove());
+        for (const inp of toUpload) {
+          const file = inp.files[0];
+          const stored = await uploadFileChunked(file, inp.name);
+          const hidden = document.createElement("input");
+          hidden.type = "hidden";
+          hidden.name = "preuploaded__" + inp.name;
+          hidden.value = stored;
+          formEl.appendChild(hidden);
+          inp.value = "";
+        }
+        setProgress("Saving form…");
+        formEl.submit();
+      } catch (err) {
+        setProgress("");
+        alert((err && err.message) || "Upload failed. Please try again.");
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Save / Submit Onboarding";
+        }
+      }
+    });
+  }
 </script>
 {% endblock %}

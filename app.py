@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urljoin
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, Form, Request, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi import FastAPI, Form, Request, UploadFile
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -19,6 +20,8 @@ import db
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
+# Starlette defaults max_part_size to 1MB — that silently kills Mac/phone videos.
+MAX_PART_SIZE = int(os.getenv("MAX_UPLOAD_PART_BYTES", str(512 * 1024 * 1024)))
 PRODUCT_OPTIONS = [
     ("avatar-studio", "Avatar Studio"),
     ("lead-flow-call", "LeadFlow"),
@@ -74,6 +77,34 @@ def safe_filename(name: str) -> str:
     base = Path(name or "file").name
     base = re.sub(r"[^\w.\-]+", "_", base).strip("._") or "file"
     return base[:180]
+
+
+async def save_upload_stream(upload: UploadFile, dest: Path) -> int:
+    """Write upload to disk in chunks (avoid loading whole video into RAM)."""
+    written = 0
+    with dest.open("wb") as out:
+        while True:
+            block = await upload.read(1024 * 1024)
+            if not block:
+                break
+            out.write(block)
+            written += len(block)
+    return written
+
+
+def chunk_dir(invite_id: int, upload_id: str) -> Path:
+    path = db.upload_dir_for_invite(invite_id) / "_chunks" / upload_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def resolve_invite_for_upload(token: str):
+    invite = db.get_invite_by_token(token)
+    if not invite:
+        return None, JSONResponse({"ok": False, "error": "Invalid link"}, status_code=404)
+    if invite["status"] == "submitted":
+        return None, JSONResponse({"ok": False, "error": "Already submitted"}, status_code=400)
+    return invite, None
 
 
 def client_connect_context(invite: dict) -> dict:
@@ -340,6 +371,80 @@ def client_form_get(request: Request, token: str):
     )
 
 
+@app.post("/o/{token}/upload-chunk")
+async def client_upload_chunk(request: Request, token: str):
+    """Accept large Mac/phone videos in small pieces (avoids timeouts)."""
+    invite, err = resolve_invite_for_upload(token)
+    if err:
+        return err
+    try:
+        form = await request.form(max_part_size=MAX_PART_SIZE)
+    except Exception:
+        return JSONResponse({"ok": False, "error": "Chunk parse failed"}, status_code=400)
+
+    field = str(form.get("field") or "").strip()
+    upload_id = str(form.get("upload_id") or "").strip()
+    filename = str(form.get("filename") or "file").strip()
+    try:
+        chunk_index = int(form.get("chunk_index"))
+        total_chunks = int(form.get("total_chunks"))
+    except (TypeError, ValueError):
+        return JSONResponse({"ok": False, "error": "Invalid chunk numbers"}, status_code=400)
+    chunk = form.get("chunk")
+    if not isinstance(chunk, UploadFile):
+        return JSONResponse({"ok": False, "error": "Missing chunk"}, status_code=400)
+
+    if field not in FILE_FIELDS:
+        return JSONResponse({"ok": False, "error": "Invalid field"}, status_code=400)
+    if total_chunks < 1 or total_chunks > 2000:
+        return JSONResponse({"ok": False, "error": "Invalid chunk count"}, status_code=400)
+    if chunk_index < 0 or chunk_index >= total_chunks:
+        return JSONResponse({"ok": False, "error": "Invalid chunk index"}, status_code=400)
+    upload_id = re.sub(r"[^a-zA-Z0-9_\-]", "", upload_id)[:64]
+    if not upload_id:
+        return JSONResponse({"ok": False, "error": "Invalid upload id"}, status_code=400)
+
+    dest = chunk_dir(invite["id"], upload_id) / f"{chunk_index:06d}.part"
+    written = await save_upload_stream(chunk, dest)
+    if written <= 0:
+        return JSONResponse({"ok": False, "error": "Empty chunk"}, status_code=400)
+
+    if chunk_index == total_chunks - 1:
+        parts_root = chunk_dir(invite["id"], upload_id)
+        for i in range(total_chunks):
+            part = parts_root / f"{i:06d}.part"
+            if not part.is_file():
+                return JSONResponse(
+                    {"ok": False, "error": f"Missing chunk {i}"},
+                    status_code=400,
+                )
+        stored = f"{field}__{safe_filename(filename)}"
+        final_path = db.upload_dir_for_invite(invite["id"]) / stored
+        with final_path.open("wb") as out:
+            for i in range(total_chunks):
+                part = parts_root / f"{i:06d}.part"
+                out.write(part.read_bytes())
+        shutil.rmtree(parts_root, ignore_errors=True)
+        return JSONResponse(
+            {
+                "ok": True,
+                "done": True,
+                "field": field,
+                "stored_name": stored,
+                "display_name": display_filename(stored),
+            }
+        )
+
+    return JSONResponse(
+        {
+            "ok": True,
+            "done": False,
+            "chunk_index": chunk_index,
+            "total_chunks": total_chunks,
+        }
+    )
+
+
 @app.post("/o/{token}", response_class=HTMLResponse)
 async def client_form_post(request: Request, token: str):
     invite = db.get_invite_by_token(token)
@@ -355,18 +460,17 @@ async def client_form_post(request: Request, token: str):
     extra_notes: List[str] = []
 
     try:
-        form = await request.form()
+        form = await request.form(max_part_size=MAX_PART_SIZE)
     except Exception:
-        # Multipart parse failure (often oversized upload via proxy)
         return templates.TemplateResponse(
             "client_form.html",
             form_context(
                 request,
                 token,
                 invite,
-                error="Upload failed (file may be too large). Try a smaller file, then submit again — progress is kept.",
+                error="Upload failed. Please try again — your previous progress is kept.",
                 pending=list(prior.get("pending") or [])
-                + (["Avatar video (upload failed — try smaller file)"] if "avatar-studio" in products else []),
+                + (["Avatar video (upload failed — try again)"] if "avatar-studio" in products else []),
                 submission=prior or None,
             ),
             status_code=413,
@@ -405,7 +509,7 @@ async def client_form_post(request: Request, token: str):
 
     payload = dict(prior_payload)
     for key in form.keys():
-        if key in FILE_FIELDS or key.startswith("common__"):
+        if key in FILE_FIELDS or key.startswith("common__") or key.startswith("preuploaded__"):
             continue
         if any(key.startswith(p) for p in TEXT_PREFIXES):
             val = form.get(key)
@@ -419,21 +523,34 @@ async def client_form_post(request: Request, token: str):
 
     upload_root = db.upload_dir_for_invite(invite["id"])
     saved_files: dict = {}
+
+    # Files already uploaded via chunked API (large Mac/phone videos).
     for field in FILE_FIELDS:
+        pre = str(form.get(f"preuploaded__{field}") or "").strip()
+        if not pre:
+            continue
+        pre_name = Path(pre).name
+        if not pre_name.startswith(f"{field}__"):
+            continue
+        if (upload_root / pre_name).is_file():
+            saved_files[field] = pre_name
+
+    for field in FILE_FIELDS:
+        if field in saved_files:
+            continue
         item = form.get(field)
         if not isinstance(item, UploadFile) or not item.filename:
             continue
         try:
             fname = f"{field}__{safe_filename(item.filename)}"
             dest = upload_root / fname
-            content = await item.read()
-            if not content:
+            written = await save_upload_stream(item, dest)
+            if written <= 0:
                 continue
-            dest.write_bytes(content)
             saved_files[field] = fname
         except Exception:
             if field == "avatar__video":
-                extra_notes.append("Avatar video (upload failed — try smaller file)")
+                extra_notes.append("Avatar video (upload failed — try again)")
             elif field == "avatar__voice_sample":
                 extra_notes.append("Voice sample (upload failed — try again)")
             else:
@@ -444,7 +561,7 @@ async def client_form_post(request: Request, token: str):
         products, company, phone, city, country, payload, merged_files, extra_notes
     )
 
-    submission = db.save_submission(
+    db.save_submission(
         invite["id"],
         company,
         phone,
