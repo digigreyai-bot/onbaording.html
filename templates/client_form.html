@@ -4,7 +4,18 @@
 <div class="max-w-6xl mx-auto p-4 md:p-8">
   <div class="bg-white rounded-2xl shadow-xl p-6 md:p-10">
     <h1 class="text-3xl font-bold text-slate-800">Client Onboarding Form</h1>
-    <p class="text-slate-600 mt-1">Digigrey set up these products for you. Fill the details below.</p>
+    <p class="text-slate-600 mt-1">Digigrey set up these products for you. Fill the details below. You can save and come back to finish anything still pending.</p>
+
+    {% if pending %}
+    <div class="mt-6 mb-4 p-4 rounded-xl border border-red-300 bg-red-50 text-red-800">
+      <p class="font-bold">Pending — still needed:</p>
+      <ul class="list-disc ml-5 mt-2 text-sm space-y-1">
+        {% for item in pending %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
     <div class="p-4 rounded-xl border bg-teal-50 mt-6 mb-6">
       <h3 class="font-bold text-teal-900">Onboarding Guide Meeting if Needed</h3>
@@ -26,11 +37,12 @@
       <fieldset class="p-4 rounded-xl border bg-slate-50">
         <legend class="font-semibold text-teal-700 px-2">1) Basic Information</legend>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div><label class="text-sm font-medium">Company Name *</label><input required name="common__company" class="w-full border rounded px-3 py-2" /></div>
-          <div><label class="text-sm font-medium">Phone Number *</label><input required type="tel" name="common__phone" class="w-full border rounded px-3 py-2" /></div>
-          <div><label class="text-sm font-medium">City *</label><input required name="common__city" class="w-full border rounded px-3 py-2" /></div>
-          <div><label class="text-sm font-medium">Country *</label><input required name="common__country" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Company Name</label><input name="common__company" value="{{ company }}" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Phone Number</label><input type="tel" name="common__phone" value="{{ phone }}" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">City</label><input name="common__city" value="{{ city }}" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Country</label><input name="common__country" value="{{ country }}" class="w-full border rounded px-3 py-2" /></div>
         </div>
+        <p class="text-xs text-slate-500 mt-2">Enter at least company or phone to save. Other fields can be finished later.</p>
       </fieldset>
 
       {% if show_social %}
@@ -86,14 +98,20 @@
         <p class="text-sm text-slate-600 mb-2">Flow: news/script → client approve → avatar reel (9:16) → posting.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-medium">Avatar Video *</label>
-            <input required type="file" name="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="w-full border rounded px-3 py-2" />
-            <p class="text-xs text-slate-500 mt-1">Clear face video (MP4/MOV), ~10–30 seconds.</p>
+            <label class="text-sm font-medium">Avatar Video</label>
+            {% if uploaded_files.get("avatar__video") %}
+            <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("avatar__video") }}</p>
+            {% endif %}
+            <input type="file" name="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Clear face video (MP4/MOV), ~10–30 seconds. Re-upload only if replacing.</p>
           </div>
           <div>
-            <label class="text-sm font-medium">Voice Sample *</label>
-            <input required type="file" name="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="w-full border rounded px-3 py-2" />
-            <p class="text-xs text-slate-500 mt-1">Clear voice recording, ~30–60 seconds.</p>
+            <label class="text-sm font-medium">Voice Sample</label>
+            {% if uploaded_files.get("avatar__voice_sample") %}
+            <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("avatar__voice_sample") }}</p>
+            {% endif %}
+            <input type="file" name="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="w-full border rounded px-3 py-2" />
+            <p class="text-xs text-slate-500 mt-1">Clear voice recording, ~30–60 seconds. Re-upload only if replacing.</p>
           </div>
         </div>
       </fieldset>
@@ -103,9 +121,15 @@
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-slate-800 px-2">Smart Grid</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label class="text-sm font-medium">Business Logo / Visiting Card</label><input type="file" name="smartgrid__logo" class="w-full border rounded px-3 py-2" /></div>
-          <div><label class="text-sm font-medium">Brand tagline (optional)</label><input name="smartgrid__tagline" class="w-full border rounded px-3 py-2" /></div>
-          <div class="md:col-span-2"><label class="text-sm font-medium">Content sources</label><textarea name="smartgrid__sources" rows="2" class="w-full border rounded px-3 py-2"></textarea></div>
+          <div>
+            <label class="text-sm font-medium">Business Logo / Visiting Card</label>
+            {% if uploaded_files.get("smartgrid__logo") %}
+            <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("smartgrid__logo") }}</p>
+            {% endif %}
+            <input type="file" name="smartgrid__logo" class="w-full border rounded px-3 py-2" />
+          </div>
+          <div><label class="text-sm font-medium">Brand tagline (optional)</label><input name="smartgrid__tagline" value="{{ payload.get('smartgrid__tagline', '') }}" class="w-full border rounded px-3 py-2" /></div>
+          <div class="md:col-span-2"><label class="text-sm font-medium">Content sources</label><textarea name="smartgrid__sources" rows="2" class="w-full border rounded px-3 py-2">{{ payload.get('smartgrid__sources', '') }}</textarea></div>
         </div>
       </fieldset>
       {% endif %}
@@ -114,12 +138,15 @@
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-slate-800 px-2">LeadFlow</legend>
         <label class="text-sm font-medium">Current projects (paste in simple bullets)</label>
-        <textarea name="leadflow__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3"></textarea>
+        <textarea name="leadflow__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3">{{ payload.get('leadflow__projects', '') }}</textarea>
         <label class="text-sm font-medium">Or upload project details file (PDF/DOC/XLS)</label>
+        {% if uploaded_files.get("leadflow__projects_file") %}
+        <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("leadflow__projects_file") }}</p>
+        {% endif %}
         <input type="file" name="leadflow__projects_file" class="w-full border rounded px-3 py-2 mb-3" />
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div><label class="text-sm font-medium">CRM Name (optional)</label><input name="leadflow__crm_name" class="w-full border rounded px-3 py-2" /></div>
-          <div><label class="text-sm font-medium">CRM API Key (optional)</label><input type="password" name="leadflow__api" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">CRM Name (optional)</label><input name="leadflow__crm_name" value="{{ payload.get('leadflow__crm_name', '') }}" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">CRM API Key (optional)</label><input type="password" name="leadflow__api" value="{{ payload.get('leadflow__api', '') }}" class="w-full border rounded px-3 py-2" /></div>
         </div>
       </fieldset>
       {% endif %}
@@ -128,8 +155,11 @@
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-slate-800 px-2">Call Pilot</legend>
         <label class="text-sm font-medium">Current projects</label>
-        <textarea name="callpilot__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3"></textarea>
+        <textarea name="callpilot__projects" rows="4" class="w-full border rounded px-3 py-2 mb-3">{{ payload.get('callpilot__projects', '') }}</textarea>
         <label class="text-sm font-medium">Or upload project details file</label>
+        {% if uploaded_files.get("callpilot__projects_file") %}
+        <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("callpilot__projects_file") }}</p>
+        {% endif %}
         <input type="file" name="callpilot__projects_file" class="w-full border rounded px-3 py-2 mb-3" />
       </fieldset>
       {% endif %}
@@ -138,20 +168,35 @@
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-slate-800 px-2">Market Pulse</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><label class="text-sm font-medium">Sender Email *</label><input required type="email" name="marketpulse__email" class="w-full border rounded px-3 py-2" /></div>
+          <div><label class="text-sm font-medium">Sender Email</label><input type="email" name="marketpulse__email" value="{{ payload.get('marketpulse__email', '') }}" class="w-full border rounded px-3 py-2" /></div>
           <div>
-            <label class="text-sm font-medium">Email App Password *</label>
-            <input required type="password" name="marketpulse__app_password" autocomplete="new-password" class="w-full border rounded px-3 py-2" placeholder="16-character app password" />
+            <label class="text-sm font-medium">Email App Password</label>
+            {% if payload.get('marketpulse__app_password') %}
+            <p class="text-xs text-emerald-700 mb-1">Already saved — leave blank to keep.</p>
+            {% endif %}
+            <input type="password" name="marketpulse__app_password" autocomplete="new-password" class="w-full border rounded px-3 py-2" placeholder="16-character app password" />
             <p class="text-xs text-slate-500 mt-1">Use an App Password (not your normal email password).</p>
           </div>
-          <div><label class="text-sm font-medium">Business Logo / Visiting Card</label><input type="file" name="marketpulse__logo" class="w-full border rounded px-3 py-2" /></div>
-          <div class="md:col-span-2"><label class="text-sm font-medium">Lead Database Spreadsheet (CSV/XLSX/XLS)</label><input type="file" name="marketpulse__leads" class="w-full border rounded px-3 py-2" /></div>
+          <div>
+            <label class="text-sm font-medium">Business Logo / Visiting Card</label>
+            {% if uploaded_files.get("marketpulse__logo") %}
+            <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("marketpulse__logo") }}</p>
+            {% endif %}
+            <input type="file" name="marketpulse__logo" class="w-full border rounded px-3 py-2" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="text-sm font-medium">Lead Database Spreadsheet (CSV/XLSX/XLS)</label>
+            {% if uploaded_files.get("marketpulse__leads") %}
+            <p class="text-xs text-emerald-700 mb-1">Already uploaded: {{ uploaded_files.get("marketpulse__leads") }}</p>
+            {% endif %}
+            <input type="file" name="marketpulse__leads" class="w-full border rounded px-3 py-2" />
+          </div>
         </div>
       </fieldset>
       {% endif %}
 
       <div class="flex justify-end">
-        <button class="px-8 py-3 rounded-xl bg-teal-800 text-white font-bold" type="submit">Submit Onboarding</button>
+        <button class="px-8 py-3 rounded-xl bg-teal-800 text-white font-bold" type="submit">Save / Submit Onboarding</button>
       </div>
     </form>
   </div>

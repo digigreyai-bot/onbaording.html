@@ -7,9 +7,28 @@
       <div>
         <a href="/admin" class="text-sm text-teal-800 underline">← Back</a>
         <h1 class="text-2xl font-bold text-slate-800 mt-2">{{ invite.label }}</h1>
-        <p class="text-sm text-slate-600">Status: <strong>{{ invite.status }}</strong></p>
+        <p class="text-sm text-slate-600">Status:
+          {% if invite.status == "submitted" %}
+          <strong class="text-emerald-700">submitted</strong>
+          {% elif invite.status == "partial" %}
+          <strong class="text-red-700">partial</strong>
+          {% else %}
+          <strong class="text-amber-700">{{ invite.status }}</strong>
+          {% endif %}
+        </p>
       </div>
     </div>
+
+    {% if submission and submission.pending %}
+    <div class="p-4 rounded-xl border border-red-300 bg-red-50 text-red-800">
+      <p class="font-bold">Pending — still needed from client:</p>
+      <ul class="list-disc ml-5 mt-2 text-sm space-y-1">
+        {% for item in submission.pending %}
+        <li>{{ item }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
 
     <div class="p-4 rounded-xl border bg-teal-50">
       <h2 class="font-semibold text-teal-900">Client form link</h2>
@@ -48,12 +67,17 @@
     </div>
 
     {% if submission %}
-    <div class="p-4 rounded-xl border bg-emerald-50 space-y-3">
-      <h2 class="font-semibold text-emerald-900">Submission</h2>
-      <p class="text-sm"><strong>Company:</strong> {{ submission.company }}</p>
-      <p class="text-sm"><strong>Phone:</strong> {{ submission.phone }}</p>
-      <p class="text-sm"><strong>City / Country:</strong> {{ submission.city }} / {{ submission.country }}</p>
-      <p class="text-sm"><strong>Submitted:</strong> {{ submission.created_at }}</p>
+    <div class="p-4 rounded-xl border {% if submission.pending %}bg-amber-50{% else %}bg-emerald-50{% endif %} space-y-3">
+      <h2 class="font-semibold {% if submission.pending %}text-amber-900{% else %}text-emerald-900{% endif %}">
+        {% if submission.pending %}Partial submission{% else %}Submission{% endif %}
+      </h2>
+      <p class="text-sm"><strong>Company:</strong> {{ submission.company or "—" }}</p>
+      <p class="text-sm"><strong>Phone:</strong> {{ submission.phone or "—" }}</p>
+      <p class="text-sm"><strong>City / Country:</strong> {{ submission.city or "—" }} / {{ submission.country or "—" }}</p>
+      <p class="text-sm"><strong>First saved:</strong> {{ submission.created_at }}</p>
+      {% if submission.updated_at %}
+      <p class="text-sm"><strong>Last updated:</strong> {{ submission.updated_at }}</p>
+      {% endif %}
 
       <h3 class="font-semibold text-emerald-900 pt-2">Details</h3>
       <pre class="text-xs bg-white border rounded p-3 overflow-x-auto whitespace-pre-wrap">{{ submission.payload | tojson(indent=2) }}</pre>

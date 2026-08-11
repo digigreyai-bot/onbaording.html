@@ -88,6 +88,110 @@ def client_connect_context(invite: dict) -> dict:
     }
 
 
+def display_filename(stored: str) -> str:
+    """Strip field prefix from stored upload names for UI."""
+    name = Path(stored or "").name
+    for field in FILE_FIELDS:
+        prefix = f"{field}__"
+        if name.startswith(prefix):
+            return name[len(prefix) :]
+    return name
+
+
+def compute_pending(
+    products: list,
+    company: str,
+    phone: str,
+    city: str,
+    country: str,
+    payload: dict,
+    files: dict,
+    extra_notes: Optional[List[str]] = None,
+) -> List[str]:
+    """Checklist of missing required items for selected products."""
+    pending: List[str] = []
+    if not (company or "").strip():
+        pending.append("Company name")
+    if not (phone or "").strip():
+        pending.append("Phone number")
+    if not (city or "").strip():
+        pending.append("City")
+    if not (country or "").strip():
+        pending.append("Country")
+
+    payload = payload or {}
+    files = files or {}
+
+    if "avatar-studio" in products:
+        if not files.get("avatar__video"):
+            pending.append("Avatar video")
+        if not files.get("avatar__voice_sample"):
+            pending.append("Voice sample")
+
+    if "market-pulse" in products:
+        if not str(payload.get("marketpulse__email") or "").strip():
+            pending.append("Market Pulse sender email")
+        if not str(payload.get("marketpulse__app_password") or "").strip():
+            pending.append("Market Pulse app password")
+
+    if "smart-grid" in products:
+        if not files.get("smartgrid__logo") and not str(payload.get("smartgrid__tagline") or "").strip():
+            # soft: logo OR tagline/sources optional — only flag empty sources+logo as mild?
+            pass  # Smart Grid has no hard required beyond basics
+
+    if "lead-flow-call" in products:
+        has_projects = bool(str(payload.get("leadflow__projects") or "").strip())
+        has_file = bool(files.get("leadflow__projects_file"))
+        if not has_projects and not has_file:
+            pending.append("LeadFlow projects")
+
+    if "call-pilot" in products:
+        has_projects = bool(str(payload.get("callpilot__projects") or "").strip())
+        has_file = bool(files.get("callpilot__projects_file"))
+        if not has_projects and not has_file:
+            pending.append("Call Pilot projects")
+
+    if extra_notes:
+        for note in extra_notes:
+            if note and note not in pending:
+                pending.append(note)
+    return pending
+
+
+def form_context(
+    request: Request,
+    token: str,
+    invite: dict,
+    *,
+    error: Optional[str] = None,
+    pending: Optional[List[str]] = None,
+    submission: Optional[dict] = None,
+) -> dict:
+    products = invite.get("products") or []
+    submission = submission or db.get_submission_by_invite(invite["id"])
+    files = (submission or {}).get("files") or {}
+    payload = (submission or {}).get("payload") or {}
+    if pending is None:
+        pending = list((submission or {}).get("pending") or [])
+    uploaded = {k: display_filename(v) for k, v in files.items() if v}
+    return {
+        "request": request,
+        "token": token,
+        "products": products,
+        "product_labels": PRODUCT_LABELS,
+        **client_connect_context(invite),
+        "error": error,
+        "pending": pending,
+        "submission": submission,
+        "payload": payload,
+        "uploaded_files": uploaded,
+        "company": (submission or {}).get("company") or "",
+        "phone": (submission or {}).get("phone") or "",
+        "city": (submission or {}).get("city") or "",
+        "country": (submission or {}).get("country") or "",
+    }
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return RedirectResponse("/admin", status_code=303)
@@ -227,20 +331,12 @@ def client_form_get(request: Request, token: str):
     invite = db.get_invite_by_token(token)
     if not invite:
         return HTMLResponse("<h1>Invalid or expired link</h1>", status_code=404)
+    # Only fully submitted invites are locked; partial can resume.
     if invite["status"] == "submitted":
         return templates.TemplateResponse("already_submitted.html", {"request": request})
-    products = invite.get("products") or []
-    ctx = client_connect_context(invite)
     return templates.TemplateResponse(
         "client_form.html",
-        {
-            "request": request,
-            "token": token,
-            "products": products,
-            "product_labels": PRODUCT_LABELS,
-            **ctx,
-            "error": None,
-        },
+        form_context(request, token, invite),
     )
 
 
@@ -252,47 +348,62 @@ async def client_form_post(request: Request, token: str):
     if invite["status"] == "submitted":
         return templates.TemplateResponse("already_submitted.html", {"request": request})
 
-    form = await request.form()
     products = invite.get("products") or []
+    prior = db.get_submission_by_invite(invite["id"]) or {}
+    prior_files = dict(prior.get("files") or {})
+    prior_payload = dict(prior.get("payload") or {})
+    extra_notes: List[str] = []
+
+    try:
+        form = await request.form()
+    except Exception:
+        # Multipart parse failure (often oversized upload via proxy)
+        return templates.TemplateResponse(
+            "client_form.html",
+            form_context(
+                request,
+                token,
+                invite,
+                error="Upload failed (file may be too large). Try a smaller file, then submit again — progress is kept.",
+                pending=list(prior.get("pending") or [])
+                + (["Avatar video (upload failed — try smaller file)"] if "avatar-studio" in products else []),
+                submission=prior or None,
+            ),
+            status_code=413,
+        )
 
     company = str(form.get("common__company") or "").strip()
     phone = str(form.get("common__phone") or "").strip()
     city = str(form.get("common__city") or "").strip()
     country = str(form.get("common__country") or "").strip()
 
-    def render_error(msg: str):
-        ctx = client_connect_context(invite)
+    def render_form(msg: str, pending: Optional[List[str]] = None, status: int = 400):
         return templates.TemplateResponse(
             "client_form.html",
-            {
-                "request": request,
-                "token": token,
-                "products": products,
-                "product_labels": PRODUCT_LABELS,
-                **ctx,
-                "error": msg,
-            },
-            status_code=400,
+            form_context(
+                request,
+                token,
+                invite,
+                error=msg,
+                pending=pending,
+                submission={
+                    **(prior or {}),
+                    "company": company or (prior or {}).get("company") or "",
+                    "phone": phone or (prior or {}).get("phone") or "",
+                    "city": city or (prior or {}).get("city") or "",
+                    "country": country or (prior or {}).get("country") or "",
+                    "payload": prior_payload,
+                    "files": prior_files,
+                },
+            ),
+            status_code=status,
         )
 
-    if not all([company, phone, city, country]):
-        return render_error("Please fill all basic information fields.")
+    # Soft-require at least company OR phone so empty spam is avoided.
+    if not company and not phone:
+        return render_form("Please enter at least a company name or phone number before saving.")
 
-    if "market-pulse" in products:
-        if not str(form.get("marketpulse__email") or "").strip():
-            return render_error("Market Pulse sender email is required.")
-        if not str(form.get("marketpulse__app_password") or "").strip():
-            return render_error("Market Pulse app password is required.")
-
-    if "avatar-studio" in products:
-        av = form.get("avatar__video")
-        vs = form.get("avatar__voice_sample")
-        if not isinstance(av, UploadFile) or not av.filename:
-            return render_error("Avatar video is required.")
-        if not isinstance(vs, UploadFile) or not vs.filename:
-            return render_error("Voice sample is required.")
-
-    payload = {}
+    payload = dict(prior_payload)
     for key in form.keys():
         if key in FILE_FIELDS or key.startswith("common__"):
             continue
@@ -300,23 +411,57 @@ async def client_form_post(request: Request, token: str):
             val = form.get(key)
             if isinstance(val, UploadFile):
                 continue
-            payload[key] = str(val or "")
+            # Keep previous secret if user left password blank on resume
+            new_val = str(val or "")
+            if key == "marketpulse__app_password" and not new_val.strip():
+                continue
+            payload[key] = new_val
 
     upload_root = db.upload_dir_for_invite(invite["id"])
-    saved_files = {}
+    saved_files: dict = {}
     for field in FILE_FIELDS:
         item = form.get(field)
         if not isinstance(item, UploadFile) or not item.filename:
             continue
-        fname = f"{field}__{safe_filename(item.filename)}"
-        dest = upload_root / fname
-        content = await item.read()
-        dest.write_bytes(content)
-        saved_files[field] = fname
+        try:
+            fname = f"{field}__{safe_filename(item.filename)}"
+            dest = upload_root / fname
+            content = await item.read()
+            if not content:
+                continue
+            dest.write_bytes(content)
+            saved_files[field] = fname
+        except Exception:
+            if field == "avatar__video":
+                extra_notes.append("Avatar video (upload failed — try smaller file)")
+            elif field == "avatar__voice_sample":
+                extra_notes.append("Voice sample (upload failed — try again)")
+            else:
+                extra_notes.append(f"{field} (upload failed)")
 
-    try:
-        db.save_submission(invite["id"], company, phone, city, country, payload, saved_files)
-    except ValueError as e:
-        return render_error(str(e))
+    merged_files = {**prior_files, **saved_files}
+    pending = compute_pending(
+        products, company, phone, city, country, payload, merged_files, extra_notes
+    )
 
-    return templates.TemplateResponse("thank_you.html", {"request": request})
+    submission = db.save_submission(
+        invite["id"],
+        company,
+        phone,
+        city,
+        country,
+        payload,
+        saved_files,
+        pending=pending,
+    )
+
+    return templates.TemplateResponse(
+        "thank_you.html",
+        {
+            "request": request,
+            "pending": pending,
+            "is_partial": bool(pending),
+            "token": token,
+            "form_url": client_form_url(request, token),
+        },
+    )

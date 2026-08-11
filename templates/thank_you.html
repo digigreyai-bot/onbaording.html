@@ -2,7 +2,18 @@
 {% block title %}Thank you — Digigrey{% endblock %}
 {% block body %}
 <div class="max-w-lg mx-auto mt-16 bg-white rounded-2xl shadow-xl p-8 text-center">
+  {% if is_partial %}
+  <h1 class="text-2xl font-bold text-slate-800">Saved — still pending</h1>
+  <p class="text-slate-600 mt-3">Your progress was saved. Please finish the items below, then submit again from the same link.</p>
+  <ul class="text-left list-disc ml-8 mt-4 text-sm text-red-800 space-y-1">
+    {% for item in pending %}
+    <li>{{ item }}</li>
+    {% endfor %}
+  </ul>
+  <a href="{{ form_url }}" class="inline-block mt-6 px-6 py-3 rounded-xl bg-teal-800 text-white font-semibold">Continue form</a>
+  {% else %}
   <h1 class="text-2xl font-bold text-slate-800">Submitted</h1>
   <p class="text-slate-600 mt-3">Shukriya — Digigrey team ko aapki onboarding details mil gayi hain. Woh dashboard pe review karenge.</p>
+  {% endif %}
 </div>
 {% endblock %}

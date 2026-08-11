@@ -79,6 +79,11 @@ def init_db() -> None:
         for col in ("connect_url_avatar", "connect_url_vtour", "connect_url_smartgrid"):
             if col not in cols:
                 conn.execute(f"ALTER TABLE invites ADD COLUMN {col} TEXT")
+        sub_cols = _table_columns(conn, "submissions")
+        if "pending_json" not in sub_cols:
+            conn.execute("ALTER TABLE submissions ADD COLUMN pending_json TEXT DEFAULT '[]'")
+        if "updated_at" not in sub_cols:
+            conn.execute("ALTER TABLE submissions ADD COLUMN updated_at TEXT")
 
 
 def _normalize_connect_urls(d: Dict[str, Any]) -> Dict[str, Any]:
@@ -114,6 +119,17 @@ def _row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
             d["files"] = json.loads(d["files_json"])
         except json.JSONDecodeError:
             d["files"] = {}
+    if "pending_json" in d:
+        raw_pending = d.get("pending_json")
+        if isinstance(raw_pending, str):
+            try:
+                d["pending"] = json.loads(raw_pending or "[]")
+            except json.JSONDecodeError:
+                d["pending"] = []
+        elif isinstance(raw_pending, list):
+            d["pending"] = raw_pending
+        else:
+            d["pending"] = []
     if "token" in d or "label" in d:
         d = _normalize_connect_urls(d)
     return d
@@ -172,7 +188,10 @@ def list_invites() -> List[Dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT i.*, s.id AS submission_id, s.company AS submission_company
+            SELECT i.*,
+                   s.id AS submission_id,
+                   s.company AS submission_company,
+                   s.pending_json AS submission_pending_json
             FROM invites i
             LEFT JOIN submissions s ON s.invite_id = i.id
             ORDER BY i.id DESC
@@ -181,6 +200,16 @@ def list_invites() -> List[Dict[str, Any]]:
     out = []
     for row in rows:
         d = _row_to_dict(row)
+        if d is None:
+            continue
+        raw_p = d.get("submission_pending_json")
+        if isinstance(raw_p, str):
+            try:
+                d["submission_pending"] = json.loads(raw_p or "[]")
+            except json.JSONDecodeError:
+                d["submission_pending"] = []
+        else:
+            d["submission_pending"] = []
         out.append(d)
     return out
 
@@ -205,34 +234,81 @@ def save_submission(
     country: str,
     payload: Dict[str, Any],
     files: Dict[str, str],
+    pending: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
+    """Upsert submission; merge files (keep previous when field not re-uploaded)."""
     now = utc_now()
+    pending_list = list(pending or [])
+    status = "submitted" if not pending_list else "partial"
     with connect() as conn:
-        existing = conn.execute("SELECT id FROM submissions WHERE invite_id = ?", (invite_id,)).fetchone()
+        existing = conn.execute(
+            "SELECT id, payload_json, files_json FROM submissions WHERE invite_id = ?",
+            (invite_id,),
+        ).fetchone()
+        old_payload: Dict[str, Any] = {}
+        old_files: Dict[str, str] = {}
         if existing:
-            raise ValueError("This invite was already submitted.")
-        cur = conn.execute(
-            """
-            INSERT INTO submissions
-              (invite_id, company, phone, city, country, payload_json, files_json, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                invite_id,
-                company.strip(),
-                phone.strip(),
-                city.strip(),
-                country.strip(),
-                json.dumps(payload),
-                json.dumps(files),
-                now,
-            ),
-        )
+            try:
+                old_payload = json.loads(existing["payload_json"] or "{}")
+            except json.JSONDecodeError:
+                old_payload = {}
+            try:
+                old_files = json.loads(existing["files_json"] or "{}")
+            except json.JSONDecodeError:
+                old_files = {}
+
+        merged_payload = {**old_payload, **(payload or {})}
+        merged_files = {**old_files, **(files or {})}
+
+        if existing:
+            conn.execute(
+                """
+                UPDATE submissions SET
+                  company = ?, phone = ?, city = ?, country = ?,
+                  payload_json = ?, files_json = ?, pending_json = ?,
+                  updated_at = ?
+                WHERE invite_id = ?
+                """,
+                (
+                    (company or "").strip(),
+                    (phone or "").strip(),
+                    (city or "").strip(),
+                    (country or "").strip(),
+                    json.dumps(merged_payload),
+                    json.dumps(merged_files),
+                    json.dumps(pending_list),
+                    now,
+                    invite_id,
+                ),
+            )
+            sid = existing["id"]
+        else:
+            cur = conn.execute(
+                """
+                INSERT INTO submissions
+                  (invite_id, company, phone, city, country,
+                   payload_json, files_json, pending_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    invite_id,
+                    (company or "").strip(),
+                    (phone or "").strip(),
+                    (city or "").strip(),
+                    (country or "").strip(),
+                    json.dumps(merged_payload),
+                    json.dumps(merged_files),
+                    json.dumps(pending_list),
+                    now,
+                    now,
+                ),
+            )
+            sid = cur.lastrowid
+
         conn.execute(
-            "UPDATE invites SET status = 'submitted', submitted_at = ? WHERE id = ?",
-            (now, invite_id),
+            "UPDATE invites SET status = ?, submitted_at = ? WHERE id = ?",
+            (status, now, invite_id),
         )
-        sid = cur.lastrowid
     return get_submission(sid)
 
 

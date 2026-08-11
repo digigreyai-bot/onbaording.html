@@ -83,6 +83,11 @@
               <td class="p-2">
                 {% if inv.status == "submitted" %}
                 <span class="text-emerald-700 font-semibold">submitted</span>
+                {% elif inv.status == "partial" %}
+                <span class="text-red-700 font-semibold">partial</span>
+                {% if inv.submission_pending %}
+                <span class="block text-xs text-red-600 mt-0.5">{{ inv.submission_pending | join(", ") }}</span>
+                {% endif %}
                 {% else %}
                 <span class="text-amber-700 font-semibold">pending</span>
                 {% endif %}
