@@ -213,8 +213,9 @@
     });
   });
 
-  // Large Mac/phone videos: upload in small chunks so client never cares about MB limits.
-  const CHUNK_BYTES = 4 * 1024 * 1024;
+  // Large Mac/phone videos: raw binary chunks + retries (no multipart).
+  const CHUNK_BYTES = 2 * 1024 * 1024;
+  const MAX_RETRIES = 5;
   const formEl = document.querySelector("form");
   const progressEl = document.getElementById("uploadProgress");
   const submitBtn = document.getElementById("submitBtn");
@@ -235,6 +236,49 @@
     return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
   }
 
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async function postChunk(url, blob, attempt) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 120000);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        body: blob,
+        headers: {
+          "Content-Type": "application/octet-stream",
+        },
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        const msg = (data && data.error) || ("HTTP " + res.status);
+        const err = new Error(msg);
+        err.retryable = res.status >= 500 || res.status === 429;
+        throw err;
+      }
+      return data;
+    } catch (err) {
+      if (err && err.name === "AbortError") {
+        const e = new Error("Upload timed out");
+        e.retryable = true;
+        throw e;
+      }
+      if (err && err.message === "Failed to fetch") {
+        const e = new Error("Connection dropped (retrying…)");
+        e.retryable = true;
+        throw e;
+      }
+      if (err && err.retryable == null) err.retryable = true;
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function uploadFileChunked(file, fieldName) {
     const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_BYTES));
     const uploadId = newUploadId();
@@ -242,20 +286,39 @@
     for (let i = 0; i < totalChunks; i++) {
       const start = i * CHUNK_BYTES;
       const blob = file.slice(start, Math.min(file.size, start + CHUNK_BYTES));
-      const body = new FormData();
-      body.append("field", fieldName);
-      body.append("upload_id", uploadId);
-      body.append("chunk_index", String(i));
-      body.append("total_chunks", String(totalChunks));
-      body.append("filename", file.name);
-      body.append("chunk", blob, file.name);
-      const res = await fetch("/o/" + encodeURIComponent(token) + "/upload-chunk", {
-        method: "POST",
-        body,
+      const qs = new URLSearchParams({
+        field: fieldName,
+        upload_id: uploadId,
+        chunk_index: String(i),
+        total_chunks: String(totalChunks),
+        filename: file.name,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        throw new Error((data && data.error) || ("Upload failed for " + file.name));
+      const url = "/o/" + encodeURIComponent(token) + "/upload-chunk?" + qs.toString();
+      let data = null;
+      let lastErr = null;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          setProgress(
+            "Uploading " + file.name + "… " +
+            Math.round((i / totalChunks) * 100) + "% " +
+            "(part " + (i + 1) + "/" + totalChunks +
+            (attempt > 1 ? ", retry " + attempt : "") + ")"
+          );
+          data = await postChunk(url, blob, attempt);
+          lastErr = null;
+          break;
+        } catch (err) {
+          lastErr = err;
+          if (!err.retryable || attempt === MAX_RETRIES) break;
+          await sleep(800 * attempt);
+        }
+      }
+      if (lastErr) {
+        throw new Error(
+          "Upload failed for " + file.name + ": " +
+          ((lastErr && lastErr.message) || "network error") +
+          ". Please tap Save again — progress may resume from this form."
+        );
       }
       const pct = Math.round(((i + 1) / totalChunks) * 100);
       setProgress("Uploading " + file.name + "… " + pct + "%");

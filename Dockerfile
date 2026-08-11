@@ -12,4 +12,4 @@ RUN mkdir -p static
 ENV PORT=8000
 EXPOSE 8000
 
-CMD uvicorn app:app --host 0.0.0.0 --port ${PORT}
+CMD uvicorn app:app --host 0.0.0.0 --port ${PORT} --timeout-keep-alive 75 --proxy-headers

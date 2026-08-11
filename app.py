@@ -373,30 +373,24 @@ def client_form_get(request: Request, token: str):
 
 @app.post("/o/{token}/upload-chunk")
 async def client_upload_chunk(request: Request, token: str):
-    """Accept large Mac/phone videos in small pieces (avoids timeouts)."""
+    """Accept large Mac/phone videos as raw binary chunks (no multipart)."""
     invite, err = resolve_invite_for_upload(token)
     if err:
         return err
-    try:
-        form = await request.form(max_part_size=MAX_PART_SIZE)
-    except Exception:
-        return JSONResponse({"ok": False, "error": "Chunk parse failed"}, status_code=400)
 
-    field = str(form.get("field") or "").strip()
-    upload_id = str(form.get("upload_id") or "").strip()
-    filename = str(form.get("filename") or "file").strip()
+    q = request.query_params
+    field = str(q.get("field") or "").strip()
+    upload_id = str(q.get("upload_id") or "").strip()
+    filename = str(q.get("filename") or "file").strip()
     try:
-        chunk_index = int(form.get("chunk_index"))
-        total_chunks = int(form.get("total_chunks"))
+        chunk_index = int(q.get("chunk_index"))
+        total_chunks = int(q.get("total_chunks"))
     except (TypeError, ValueError):
         return JSONResponse({"ok": False, "error": "Invalid chunk numbers"}, status_code=400)
-    chunk = form.get("chunk")
-    if not isinstance(chunk, UploadFile):
-        return JSONResponse({"ok": False, "error": "Missing chunk"}, status_code=400)
 
     if field not in FILE_FIELDS:
         return JSONResponse({"ok": False, "error": "Invalid field"}, status_code=400)
-    if total_chunks < 1 or total_chunks > 2000:
+    if total_chunks < 1 or total_chunks > 5000:
         return JSONResponse({"ok": False, "error": "Invalid chunk count"}, status_code=400)
     if chunk_index < 0 or chunk_index >= total_chunks:
         return JSONResponse({"ok": False, "error": "Invalid chunk index"}, status_code=400)
@@ -405,15 +399,32 @@ async def client_upload_chunk(request: Request, token: str):
         return JSONResponse({"ok": False, "error": "Invalid upload id"}, status_code=400)
 
     dest = chunk_dir(invite["id"], upload_id) / f"{chunk_index:06d}.part"
-    written = await save_upload_stream(chunk, dest)
+    written = 0
+    try:
+        with dest.open("wb") as out:
+            async for block in request.stream():
+                if not block:
+                    continue
+                out.write(block)
+                written += len(block)
+                # Hard cap per chunk (~8MB) to protect memory/disk abuse.
+                if written > 8 * 1024 * 1024:
+                    out.close()
+                    dest.unlink(missing_ok=True)
+                    return JSONResponse({"ok": False, "error": "Chunk too large"}, status_code=413)
+    except Exception:
+        dest.unlink(missing_ok=True)
+        return JSONResponse({"ok": False, "error": "Chunk write failed"}, status_code=500)
+
     if written <= 0:
+        dest.unlink(missing_ok=True)
         return JSONResponse({"ok": False, "error": "Empty chunk"}, status_code=400)
 
     if chunk_index == total_chunks - 1:
         parts_root = chunk_dir(invite["id"], upload_id)
         for i in range(total_chunks):
             part = parts_root / f"{i:06d}.part"
-            if not part.is_file():
+            if not part.is_file() or part.stat().st_size <= 0:
                 return JSONResponse(
                     {"ok": False, "error": f"Missing chunk {i}"},
                     status_code=400,
@@ -423,7 +434,8 @@ async def client_upload_chunk(request: Request, token: str):
         with final_path.open("wb") as out:
             for i in range(total_chunks):
                 part = parts_root / f"{i:06d}.part"
-                out.write(part.read_bytes())
+                with part.open("rb") as src:
+                    shutil.copyfileobj(src, out, length=1024 * 1024)
         shutil.rmtree(parts_root, ignore_errors=True)
         return JSONResponse(
             {
@@ -432,6 +444,7 @@ async def client_upload_chunk(request: Request, token: str):
                 "field": field,
                 "stored_name": stored,
                 "display_name": display_filename(stored),
+                "bytes": final_path.stat().st_size,
             }
         )
 
@@ -441,6 +454,7 @@ async def client_upload_chunk(request: Request, token: str):
             "done": False,
             "chunk_index": chunk_index,
             "total_chunks": total_chunks,
+            "bytes": written,
         }
     )
 
