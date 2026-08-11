@@ -437,6 +437,30 @@ async def client_upload_chunk(request: Request, token: str):
                 with part.open("rb") as src:
                     shutil.copyfileobj(src, out, length=1024 * 1024)
         shutil.rmtree(parts_root, ignore_errors=True)
+
+        # Register file immediately so admin sees it even if later form-save fails.
+        products = invite.get("products") or []
+        prior = db.get_submission_by_invite(invite["id"]) or {}
+        company = (prior.get("company") or "").strip()
+        phone = (prior.get("phone") or "").strip()
+        city = (prior.get("city") or "").strip()
+        country = (prior.get("country") or "").strip()
+        payload = dict(prior.get("payload") or {})
+        merged_files = {**(prior.get("files") or {}), field: stored}
+        pending = compute_pending(
+            products, company, phone, city, country, payload, merged_files
+        )
+        db.save_submission(
+            invite["id"],
+            company,
+            phone,
+            city,
+            country,
+            payload,
+            {field: stored},
+            pending=pending,
+        )
+
         return JSONResponse(
             {
                 "ok": True,
@@ -445,6 +469,7 @@ async def client_upload_chunk(request: Request, token: str):
                 "stored_name": stored,
                 "display_name": display_filename(stored),
                 "bytes": final_path.stat().st_size,
+                "pending": pending,
             }
         )
 
@@ -457,6 +482,14 @@ async def client_upload_chunk(request: Request, token: str):
             "bytes": written,
         }
     )
+
+
+async def parse_client_form(request: Request):
+    """Parse multipart/form with large-part support; fall back if kw unsupported."""
+    try:
+        return await request.form(max_part_size=MAX_PART_SIZE)
+    except TypeError:
+        return await request.form()
 
 
 @app.post("/o/{token}", response_class=HTMLResponse)
@@ -474,20 +507,21 @@ async def client_form_post(request: Request, token: str):
     extra_notes: List[str] = []
 
     try:
-        form = await request.form(max_part_size=MAX_PART_SIZE)
+        form = await parse_client_form(request)
     except Exception:
+        # Re-load DB — chunked files may already be registered.
+        prior = db.get_submission_by_invite(invite["id"]) or prior
         return templates.TemplateResponse(
             "client_form.html",
             form_context(
                 request,
                 token,
                 invite,
-                error="Upload failed. Please try again — your previous progress is kept.",
-                pending=list(prior.get("pending") or [])
-                + (["Avatar video (upload failed — try again)"] if "avatar-studio" in products else []),
+                error="Could not save form fields. Files already uploaded are kept — fill text fields and tap Save again.",
+                pending=list((prior or {}).get("pending") or []),
                 submission=prior or None,
             ),
-            status_code=413,
+            status_code=400,
         )
 
     company = str(form.get("common__company") or "").strip()

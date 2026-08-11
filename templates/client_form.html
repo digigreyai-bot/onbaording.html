@@ -349,10 +349,33 @@
           hidden.name = "preuploaded__" + inp.name;
           hidden.value = stored;
           formEl.appendChild(hidden);
+          // Critical: never re-POST the raw video in the final save.
           inp.value = "";
+          inp.removeAttribute("name");
         }
         setProgress("Saving form…");
-        formEl.submit();
+
+        // Text-only FormData — avoids re-uploading the 80MB video in the final request.
+        const fd = new FormData();
+        Array.from(formEl.elements).forEach(el => {
+          if (!el.name || el.disabled) return;
+          if (el.type === "file" || el.type === "submit" || el.type === "button") return;
+          if ((el.type === "checkbox" || el.type === "radio") && !el.checked) return;
+          fd.append(el.name, el.value);
+        });
+
+        const saveUrl = formEl.getAttribute("action") || ("/o/" + encodeURIComponent(token));
+        const res = await fetch(saveUrl, {
+          method: "POST",
+          body: fd,
+          credentials: "same-origin",
+          redirect: "follow",
+          cache: "no-store",
+        });
+        const html = await res.text();
+        document.open();
+        document.write(html);
+        document.close();
       } catch (err) {
         setProgress("");
         alert((err && err.message) || "Upload failed. Please try again.");
