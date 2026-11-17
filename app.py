@@ -1,9 +1,12 @@
 """Digigrey Client Onboarding — admin dashboard + client forms."""
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import List, Optional
 from urllib.parse import urljoin
@@ -124,6 +127,39 @@ def create_invite_from_payload(
 
 def admin_redirect_login() -> RedirectResponse:
     return RedirectResponse("/admin/login", status_code=303)
+
+
+def notify_contabo_submitted(invite: dict, form_url: str) -> None:
+    """Tell Contabo the Digigrey form is done so the portal unlocks the dashboard."""
+    base = (
+        os.getenv("CONTABO_API_URL")
+        or os.getenv("AGENTASSIST_API_URL")
+        or ""
+    ).strip().rstrip("/")
+    key = ONBOARDING_HTML_API_KEY
+    if not base or not key:
+        return
+    payload = json.dumps(
+        {
+            "inviteId": invite.get("id"),
+            "formUrl": form_url,
+            "label": invite.get("label"),
+        }
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"{base}/api/onboarding/external-complete",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "X-Onboarding-Api-Key": key,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            resp.read()
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        print(f"[onboarding] Contabo notify failed: {exc}")
 
 
 def safe_filename(name: str) -> str:
@@ -701,6 +737,10 @@ async def client_form_post(request: Request, token: str):
         pending=pending,
     )
 
+    form_url = client_form_url(request, token)
+    if not pending:
+        notify_contabo_submitted(invite, form_url)
+
     return templates.TemplateResponse(
         "thank_you.html",
         {
@@ -708,6 +748,6 @@ async def client_form_post(request: Request, token: str):
             "pending": pending,
             "is_partial": bool(pending),
             "token": token,
-            "form_url": client_form_url(request, token),
+            "form_url": form_url,
         },
     )
