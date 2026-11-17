@@ -9,10 +9,11 @@ from typing import List, Optional
 from urllib.parse import urljoin
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Form, Request, UploadFile
+from fastapi import Body, FastAPI, Form, Header, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel, Field
 
 import auth
 import db
@@ -22,6 +23,7 @@ load_dotenv()
 BASE_DIR = Path(__file__).resolve().parent
 # Starlette defaults max_part_size to 1MB — that silently kills Mac/phone videos.
 MAX_PART_SIZE = int(os.getenv("MAX_UPLOAD_PART_BYTES", str(512 * 1024 * 1024)))
+ONBOARDING_HTML_API_KEY = (os.getenv("ONBOARDING_HTML_API_KEY") or "").strip()
 PRODUCT_OPTIONS = [
     ("avatar-studio", "Avatar Studio"),
     ("lead-flow-call", "LeadFlow"),
@@ -67,6 +69,57 @@ def app_base_url(request: Request) -> str:
 
 def client_form_url(request: Request, token: str) -> str:
     return urljoin(app_base_url(request) + "/", f"o/{token}")
+
+
+def require_api_key(x_onboarding_api_key: Optional[str] = None) -> Optional[JSONResponse]:
+    expected = ONBOARDING_HTML_API_KEY
+    provided = (x_onboarding_api_key or "").strip()
+    if not expected:
+        return JSONResponse(
+            {"error": "ONBOARDING_HTML_API_KEY is not configured on this service"},
+            status_code=503,
+        )
+    if not provided or provided != expected:
+        return JSONResponse({"error": "Unauthorized"}, status_code=401)
+    return None
+
+
+def create_invite_from_payload(
+    *,
+    label: str,
+    products: List[str],
+    connect_url_avatar: str = "",
+    connect_url_vtour: str = "",
+    connect_url_smartgrid: str = "",
+) -> tuple[Optional[dict], Optional[str]]:
+    label = (label or "").strip()
+    products = [p for p in products if p in PRODUCT_LABELS]
+    avatar = (connect_url_avatar or "").strip()
+    vtour = (connect_url_vtour or "").strip()
+    smart = (connect_url_smartgrid or "").strip()
+
+    if not label:
+        return None, "Client label is required."
+    if not products:
+        return None, "Select at least one product."
+    if "avatar-studio" in products and not avatar:
+        return None, "Avatar Studio connect link is required when Avatar Studio is selected."
+    if "smart-grid" in products and not smart:
+        # One Connect Hub link is enough — reuse avatar connect URL when smart-grid needs it.
+        smart = avatar
+    if "smart-grid" not in products:
+        smart = ""
+    if "smart-grid" in products and not smart:
+        return None, "Smart Grid connect link is required when Smart Grid is selected."
+
+    invite = db.create_invite(
+        label,
+        products,
+        connect_url_avatar=avatar or None,
+        connect_url_vtour=vtour or None,
+        connect_url_smartgrid=smart or None,
+    )
+    return invite, None
 
 
 def admin_redirect_login() -> RedirectResponse:
@@ -294,31 +347,59 @@ async def admin_create_invite(
     if not auth.is_admin(request):
         return admin_redirect_login()
 
-    label = (label or "").strip()
-    products = [p for p in products if p in PRODUCT_LABELS]
-    avatar = (connect_url_avatar or "").strip()
-    vtour = (connect_url_vtour or "").strip()
-    smart = (connect_url_smartgrid or "").strip()
-
-    if not label:
-        return admin_home(request, error="Client label is required.")
-    if not products:
-        return admin_home(request, error="Select at least one product.")
-    if "avatar-studio" in products and not avatar:
-        return admin_home(request, error="Avatar Studio connect link is required when Avatar Studio is selected.")
-    if "smart-grid" in products and not smart:
-        return admin_home(request, error="Smart Grid connect link is required when Smart Grid is selected.")
-    if "smart-grid" not in products:
-        smart = ""
-
-    invite = db.create_invite(
-        label,
-        products,
-        connect_url_avatar=avatar or None,
-        connect_url_vtour=vtour or None,
-        connect_url_smartgrid=smart or None,
+    invite, error = create_invite_from_payload(
+        label=label,
+        products=products,
+        connect_url_avatar=connect_url_avatar,
+        connect_url_vtour=connect_url_vtour,
+        connect_url_smartgrid=connect_url_smartgrid,
     )
+    if error:
+        return admin_home(request, error=error)
     return RedirectResponse(f"/admin/invites/{invite['id']}", status_code=303)
+
+
+class InviteCreateBody(BaseModel):
+    label: str = Field(..., min_length=1)
+    products: List[str] = Field(default_factory=list)
+    connect_url_avatar: str = ""
+    connect_url_vtour: str = ""
+    connect_url_smartgrid: str = ""
+
+
+@app.post("/api/invites")
+async def api_create_invite(
+    request: Request,
+    payload: InviteCreateBody = Body(...),
+    x_onboarding_api_key: Optional[str] = Header(default=None, alias="X-Onboarding-Api-Key"),
+):
+    """Machine endpoint for Contabo / automations to mint a client form URL."""
+    auth_error = require_api_key(x_onboarding_api_key)
+    if auth_error:
+        return auth_error
+
+    products = payload.products or []
+    if isinstance(products, str):
+        products = [products]
+
+    invite, error = create_invite_from_payload(
+        label=str(payload.label or ""),
+        products=list(products),
+        connect_url_avatar=str(payload.connect_url_avatar or ""),
+        connect_url_vtour=str(payload.connect_url_vtour or ""),
+        connect_url_smartgrid=str(payload.connect_url_smartgrid or ""),
+    )
+    if error:
+        return JSONResponse({"error": error}, status_code=400)
+
+    token = invite["token"]
+    return {
+        "inviteId": invite["id"],
+        "token": token,
+        "formUrl": client_form_url(request, token),
+        "label": invite.get("label"),
+        "products": invite.get("products") or [],
+    }
 
 
 @app.get("/admin/invites/{invite_id}", response_class=HTMLResponse)
