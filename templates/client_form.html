@@ -49,45 +49,40 @@
       <fieldset class="p-4 rounded-xl border bg-white">
         <legend class="font-semibold text-teal-700 px-2">2) Social Connect Setup (Important)</legend>
         <div class="text-sm text-slate-700 space-y-4">
-          <p><strong>Step 1:</strong> Open each connect link Digigrey added for you (Open Link).</p>
+          <p>Connect YouTube, TikTok, Facebook/Instagram, and LinkedIn below. Each platform opens a secure popup — stay on this page.</p>
 
-          {% if connect_url_avatar %}
-          <div>
-            <label class="text-sm font-medium">Avatar Studio connect link</label>
-            <div class="flex flex-wrap gap-2 mt-1">
-              <input readonly value="{{ connect_url_avatar }}" class="connect-link-input w-full border rounded px-3 py-2 bg-slate-100" />
-              <button type="button" class="open-connect-btn px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
-            </div>
+          {% if connect_embed_url %}
+          <div class="rounded-xl border border-slate-200 overflow-hidden bg-slate-900">
+            <iframe
+              id="socialConnectFrame"
+              title="Social account connect"
+              src="{{ connect_embed_url }}"
+              class="w-full border-0"
+              style="min-height: 640px; height: 70vh;"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+              allow="clipboard-write"
+            ></iframe>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            <a
+              href="{{ connect_primary_url }}"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-block px-3 py-2 rounded bg-slate-800 text-white text-xs"
+            >Open connect page in a new tab</a>
+            <button
+              type="button"
+              id="reloadSocialFrame"
+              class="px-3 py-2 rounded border border-slate-300 text-xs text-slate-700"
+            >Refresh status</button>
           </div>
           {% endif %}
 
-          {% if connect_url_vtour %}
-          <div>
-            <label class="text-sm font-medium">VTour connect link</label>
-            <div class="flex flex-wrap gap-2 mt-1">
-              <input readonly value="{{ connect_url_vtour }}" class="connect-link-input w-full border rounded px-3 py-2 bg-slate-100" />
-              <button type="button" class="open-connect-btn px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
-            </div>
-          </div>
-          {% endif %}
-
-          {% if connect_url_smartgrid %}
-          <div>
-            <label class="text-sm font-medium">Smart Grid connect link</label>
-            <div class="flex flex-wrap gap-2 mt-1">
-              <input readonly value="{{ connect_url_smartgrid }}" class="connect-link-input w-full border rounded px-3 py-2 bg-slate-100" />
-              <button type="button" class="open-connect-btn px-3 py-2 rounded bg-slate-800 text-white text-xs whitespace-nowrap">Open Link</button>
-            </div>
-          </div>
-          {% endif %}
-
-          <p class="text-xs text-slate-500">Tap Open Link, connect your social accounts, then continue this form.</p>
-          <p><strong>Step 2:</strong> On that page connect only required platforms for selected products (TikTok / LinkedIn as needed).</p>
           {% if "avatar-studio" in products %}
-          <p><strong>Step 3 (TikTok):</strong> After connecting, you can post publicly (app is live).</p>
+          <p class="text-xs text-slate-500"><strong>TikTok:</strong> After connecting, you can post publicly (app is live).</p>
           {% endif %}
-          <p><strong>Step {% if "avatar-studio" in products %}4{% else %}3{% endif %} (Facebook Page Access):</strong> Facebook Page → Settings → Page setup → Page access → search <strong>Omar Assist</strong> → enable Insights/Ads/Content → Give Access → password confirm.</p>
-          <p><strong>Step {% if "avatar-studio" in products %}5{% else %}4{% endif %}:</strong> Keep Instagram linked to that same Facebook Page.</p>
+          <p class="text-xs text-slate-500"><strong>Facebook Page Access:</strong> Facebook Page → Settings → Page setup → Page access → search <strong>Omar Assist</strong> → enable Insights/Ads/Content → Give Access → password confirm. Keep Instagram linked to that same Facebook Page.</p>
         </div>
       </fieldset>
       {% endif %}
@@ -203,15 +198,20 @@
   </div>
 </div>
 <script>
-  document.querySelectorAll(".open-connect-btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const wrap = btn.closest("div");
-      const input = wrap && wrap.querySelector(".connect-link-input");
-      const url = (input && input.value || "").trim();
-      if (!url) { alert("Connect link missing. Contact Digigrey."); return; }
-      window.open(url, "_blank", "noopener,noreferrer");
-    });
-  });
+  (function () {
+    const frame = document.getElementById("socialConnectFrame");
+    const reloadBtn = document.getElementById("reloadSocialFrame");
+    if (frame && reloadBtn) {
+      reloadBtn.addEventListener("click", () => {
+        try {
+          frame.contentWindow.location.reload();
+        } catch (_) {
+          const src = frame.getAttribute("src");
+          if (src) frame.setAttribute("src", src);
+        }
+      });
+    }
+  })();
 
   // Large Mac/phone videos: raw binary chunks + retries (no multipart).
   const CHUNK_BYTES = 2 * 1024 * 1024;

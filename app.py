@@ -196,15 +196,30 @@ def resolve_invite_for_upload(token: str):
     return invite, None
 
 
+def _with_embed_param(url: str) -> str:
+    """Append embed=1 so Avatar Studio connect UI can compact itself in an iframe."""
+    u = (url or "").strip()
+    if not u:
+        return ""
+    joiner = "&" if "?" in u else "?"
+    if "embed=" in u:
+        return u
+    return f"{u}{joiner}embed=1"
+
+
 def client_connect_context(invite: dict) -> dict:
     avatar = (invite.get("connect_url_avatar") or "").strip()
     vtour = (invite.get("connect_url_vtour") or "").strip()
     smart = (invite.get("connect_url_smartgrid") or "").strip()
+    # One primary link (Avatar Studio Copy Connect Link) drives the embed.
+    primary = avatar or smart or vtour
     return {
         "connect_url_avatar": avatar,
         "connect_url_vtour": vtour,
         "connect_url_smartgrid": smart,
-        "show_social": bool(avatar or vtour or smart),
+        "connect_embed_url": _with_embed_param(primary),
+        "connect_primary_url": primary,
+        "show_social": bool(primary),
     }
 
 
