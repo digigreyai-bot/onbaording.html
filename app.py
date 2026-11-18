@@ -531,6 +531,67 @@ async def api_get_invite_by_token(
     }
 
 
+SENSITIVE_PAYLOAD_KEYS = (
+    "app_password",
+    "password",
+    "secret",
+    "token",
+    "api_key",
+    "apikey",
+)
+
+
+def _mask_payload(payload: dict) -> dict:
+    out = {}
+    for key, value in (payload or {}).items():
+        key_l = str(key).lower()
+        if any(s in key_l for s in SENSITIVE_PAYLOAD_KEYS):
+            out[key] = "••••••••" if value else ""
+        else:
+            out[key] = value
+    return out
+
+
+def _submission_public_payload(invite: dict, submission: Optional[dict]) -> dict:
+    products = invite.get("products") or []
+    product_labels = [PRODUCT_LABELS.get(p, p) for p in products]
+    submitted_at = invite.get("submitted_at") or (submission or {}).get("updated_at") or (submission or {}).get("created_at")
+    files = (submission or {}).get("files") or {}
+    return {
+        "inviteId": invite.get("id"),
+        "status": invite.get("status"),
+        "label": invite.get("label"),
+        "products": products,
+        "productLabels": product_labels,
+        "submittedAt": submitted_at,
+        "createdAt": (submission or {}).get("created_at"),
+        "updatedAt": (submission or {}).get("updated_at"),
+        "company": (submission or {}).get("company") or "",
+        "phone": (submission or {}).get("phone") or "",
+        "city": (submission or {}).get("city") or "",
+        "country": (submission or {}).get("country") or "",
+        "payload": _mask_payload((submission or {}).get("payload") or {}),
+        "files": {k: v for k, v in files.items() if v},
+        "pending": (submission or {}).get("pending") or [],
+    }
+
+
+@app.get("/api/invites/by-token/{token}/submission")
+async def api_get_submission_by_token(
+    token: str,
+    x_onboarding_api_key: Optional[str] = Header(default=None, alias="X-Onboarding-Api-Key"),
+):
+    """Machine endpoint: Contabo reads a client's submitted Digigrey form (read-only)."""
+    auth_error = require_api_key(x_onboarding_api_key)
+    if auth_error:
+        return auth_error
+    invite = db.get_invite_by_token(token)
+    if not invite:
+        return JSONResponse({"error": "Invite not found"}, status_code=404)
+    submission = db.get_submission_by_invite(invite["id"])
+    return _submission_public_payload(invite, submission)
+
+
 @app.get("/o/{token}", response_class=HTMLResponse)
 def client_form_get(request: Request, token: str):
     invite = db.get_invite_by_token(token)
