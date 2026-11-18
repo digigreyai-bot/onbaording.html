@@ -592,6 +592,32 @@ async def api_get_submission_by_token(
     return _submission_public_payload(invite, submission)
 
 
+@app.get("/api/invites/by-token/{token}/files/{field_name}")
+async def api_download_submission_file(
+    token: str,
+    field_name: str,
+    x_onboarding_api_key: Optional[str] = Header(default=None, alias="X-Onboarding-Api-Key"),
+):
+    """Machine endpoint: Contabo proxies a submitted upload for the client portal."""
+    auth_error = require_api_key(x_onboarding_api_key)
+    if auth_error:
+        return auth_error
+    invite = db.get_invite_by_token(token)
+    if not invite:
+        return JSONResponse({"error": "Invite not found"}, status_code=404)
+    submission = db.get_submission_by_invite(invite["id"])
+    if not submission:
+        return JSONResponse({"error": "Submission not found"}, status_code=404)
+    files = submission.get("files") or {}
+    stored_name = files.get(field_name)
+    if not stored_name:
+        return JSONResponse({"error": "File not found"}, status_code=404)
+    path = db.upload_dir_for_invite(invite["id"]) / Path(stored_name).name
+    if not path.is_file():
+        return JSONResponse({"error": "File missing on disk"}, status_code=404)
+    return FileResponse(path, filename=path.name)
+
+
 @app.get("/o/{token}", response_class=HTMLResponse)
 def client_form_get(request: Request, token: str):
     invite = db.get_invite_by_token(token)
