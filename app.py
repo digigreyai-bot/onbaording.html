@@ -138,11 +138,13 @@ def notify_contabo_submitted(invite: dict, form_url: str) -> None:
     ).strip().rstrip("/")
     key = ONBOARDING_HTML_API_KEY
     if not base or not key:
+        print("[onboarding] Contabo notify skipped: CONTABO_API_URL or API key missing")
         return
     payload = json.dumps(
         {
-            "inviteId": invite.get("id"),
+            # formUrl is the unique matcher — inviteId alone can collide across Contabo users.
             "formUrl": form_url,
+            "inviteId": invite.get("id"),
             "label": invite.get("label"),
         }
     ).encode("utf-8")
@@ -157,7 +159,8 @@ def notify_contabo_submitted(invite: dict, form_url: str) -> None:
     )
     try:
         with urllib.request.urlopen(req, timeout=12) as resp:
-            resp.read()
+            body = resp.read().decode("utf-8", errors="replace")
+            print(f"[onboarding] Contabo notify ok ({resp.status}): {body[:200]}")
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         print(f"[onboarding] Contabo notify failed: {exc}")
 
@@ -489,6 +492,45 @@ def admin_download_file(request: Request, submission_id: int, field_name: str):
     return FileResponse(path, filename=stored_name)
 
 
+@app.get("/api/invites/{invite_id}")
+async def api_get_invite(
+    invite_id: int,
+    x_onboarding_api_key: Optional[str] = Header(default=None, alias="X-Onboarding-Api-Key"),
+):
+    """Machine endpoint: Contabo polls Digigrey submit status for dashboard unlock."""
+    auth_error = require_api_key(x_onboarding_api_key)
+    if auth_error:
+        return auth_error
+    invite = db.get_invite(invite_id)
+    if not invite:
+        return JSONResponse({"error": "Invite not found"}, status_code=404)
+    return {
+        "inviteId": invite["id"],
+        "status": invite.get("status"),
+        "label": invite.get("label"),
+        "token": invite.get("token"),
+    }
+
+
+@app.get("/api/invites/by-token/{token}")
+async def api_get_invite_by_token(
+    token: str,
+    x_onboarding_api_key: Optional[str] = Header(default=None, alias="X-Onboarding-Api-Key"),
+):
+    auth_error = require_api_key(x_onboarding_api_key)
+    if auth_error:
+        return auth_error
+    invite = db.get_invite_by_token(token)
+    if not invite:
+        return JSONResponse({"error": "Invite not found"}, status_code=404)
+    return {
+        "inviteId": invite["id"],
+        "status": invite.get("status"),
+        "label": invite.get("label"),
+        "token": invite.get("token"),
+    }
+
+
 @app.get("/o/{token}", response_class=HTMLResponse)
 def client_form_get(request: Request, token: str):
     invite = db.get_invite_by_token(token)
@@ -496,6 +538,11 @@ def client_form_get(request: Request, token: str):
         return HTMLResponse("<h1>Invalid or expired link</h1>", status_code=404)
     # Only fully submitted invites are locked; partial can resume.
     if invite["status"] == "submitted":
+        # Re-notify Contabo in case the original webhook was missed / mismatched.
+        try:
+            notify_contabo_submitted(invite, client_form_url(request, token))
+        except Exception as exc:
+            print(f"[onboarding] Contabo re-notify failed: {exc}")
         return templates.TemplateResponse("already_submitted.html", {"request": request})
     return templates.TemplateResponse(
         "client_form.html",
