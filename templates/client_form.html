@@ -3,12 +3,14 @@
 {% block body %}
 <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
   <header class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-    <div>
-      <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-12 md:h-14 w-auto" width="180" height="56" />
-      <p class="mt-3 text-sm font-medium text-aa-tealDeep tracking-wide uppercase">Client onboarding</p>
-      <h1 class="text-3xl md:text-4xl font-extrabold text-aa-navy mt-1">
+    <div class="min-w-0">
+      <div class="flex flex-wrap items-center gap-3 md:gap-4">
+        <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-11 md:h-12 w-auto" width="160" height="48" />
+        <h1 class="text-2xl md:text-3xl font-extrabold text-aa-navy tracking-tight">Client Onboarding</h1>
+      </div>
+      <p class="text-xl md:text-2xl font-bold text-aa-navy mt-4">
         {% if client_name %}Welcome, {{ client_name }}{% else %}Welcome{% endif %}
-      </h1>
+      </p>
       <p class="text-aa-muted mt-2 max-w-2xl">
         Complete your AgentAssist+ setup below. Progress saves automatically as you fill each field. Submit when everything required is ready.
       </p>
@@ -117,9 +119,10 @@
           </div>
           <div>
             <label class="text-sm font-semibold text-aa-navy">Brand color <span class="req">*</span></label>
+            {% set brand_color = payload.get('common__brand_color') or '#1FB8B0' %}
             <div class="mt-1 flex gap-2 items-center">
-              <input type="color" id="brandColorPicker" value="{{ payload.get('common__brand_color', '#1FB8B0') }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
-              <input name="common__brand_color" id="brandColorText" value="{{ payload.get('common__brand_color', '') }}" data-autosave class="field-input" placeholder="#1FB8B0" />
+              <input type="color" id="brandColorPicker" value="{{ brand_color }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
+              <input name="common__brand_color" id="brandColorText" value="{{ brand_color }}" data-autosave class="field-input" placeholder="#1FB8B0" />
             </div>
           </div>
           <div>
@@ -138,14 +141,13 @@
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-1">Units</h2>
         <p class="text-sm text-aa-muted mb-4">
-          For
-          {% if "call-pilot" in products and "lead-flow-call" in products %}
-          Call Pilot and LeadFlow
-          {% elif "call-pilot" in products %}
+          {%- if "call-pilot" in products and "lead-flow-call" in products -%}
+          Call Pilot / LeadFlow
+          {%- elif "call-pilot" in products -%}
           Call Pilot
-          {% else %}
+          {%- else -%}
           LeadFlow
-          {% endif %}.
+          {%- endif -%}
         </p>
         <label class="text-sm font-semibold text-aa-navy">Current units <span class="req">*</span></label>
         <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste unit bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
@@ -185,6 +187,24 @@
             <input type="file" data-upload-group="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="field-input" multiple />
             <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
           </div>
+          <div>
+            <label class="text-sm font-semibold text-aa-navy">Clothing style <span class="req">*</span></label>
+            <select name="avatar__clothing_style" data-autosave class="field-input mt-1">
+              <option value="" {% if not payload.get('avatar__clothing_style') %}selected{% endif %}>Select style</option>
+              <option value="formal" {% if payload.get('avatar__clothing_style') == 'formal' %}selected{% endif %}>Formal</option>
+              <option value="semi-formal" {% if payload.get('avatar__clothing_style') == 'semi-formal' %}selected{% endif %}>Semi-formal</option>
+              <option value="casual" {% if payload.get('avatar__clothing_style') == 'casual' %}selected{% endif %}>Casual</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-aa-navy">Preferred setting</label>
+            <select name="avatar__preferred_setting" data-autosave class="field-input mt-1">
+              <option value="" {% if not payload.get('avatar__preferred_setting') %}selected{% endif %}>Select setting</option>
+              <option value="office" {% if payload.get('avatar__preferred_setting') == 'office' %}selected{% endif %}>Office / indoor</option>
+              <option value="studio" {% if payload.get('avatar__preferred_setting') == 'studio' %}selected{% endif %}>Neutral studio</option>
+              <option value="outdoor" {% if payload.get('avatar__preferred_setting') == 'outdoor' %}selected{% endif %}>Outdoor</option>
+            </select>
+          </div>
         </div>
       </section>
       {% endif %}
@@ -192,7 +212,7 @@
       {% if "smart-grid" in products %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Smart Grid</h2>
-        <label class="text-sm font-semibold text-aa-navy">Content sources</label>
+        <label class="text-sm font-semibold text-aa-navy">Content sources <span class="req">*</span></label>
         <textarea name="smartgrid__sources" rows="2" data-autosave class="field-input mt-1">{{ payload.get('smartgrid__sources', '') }}</textarea>
       </section>
       {% endif %}
@@ -448,19 +468,28 @@
   if (phoneVisible && window.intlTelInput) {
     iti = window.intlTelInput(phoneVisible, {
       initialCountry: "ca",
-      separateDialCode: false,
-      nationalMode: false,
-      formatOnDisplay: true,
+      separateDialCode: true,
+      nationalMode: true,
+      formatAsYouType: true,
       autoPlaceholder: "aggressive",
       countrySearch: true,
+      strictMode: false,
       utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/utils.js",
     });
+    // Prefill national number only (dial code is shown beside the flag).
+    if (phoneNational && phoneNational.value) {
+      phoneVisible.value = phoneNational.value;
+    } else if (phoneFull && phoneFull.value) {
+      try { iti.setNumber(phoneFull.value); } catch (_) {}
+    }
     const syncPhone = () => {
       if (!iti) return;
       const data = iti.getSelectedCountryData() || {};
       const dial = data.dialCode ? ("+" + data.dialCode) : "";
-      const national = (phoneVisible.value || "").replace(/^\+\d+\s*/, "").trim();
-      const full = iti.getNumber() || (phoneVisible.value || "").trim();
+      const national = (phoneVisible.value || "").trim();
+      let full = "";
+      try { full = iti.getNumber() || ""; } catch (_) { full = ""; }
+      if (!full && dial && national) full = dial + " " + national;
       if (phoneDial) phoneDial.value = dial;
       if (phoneNational) phoneNational.value = national;
       if (phoneFull) phoneFull.value = full;
@@ -474,13 +503,22 @@
   const brandPicker = document.getElementById("brandColorPicker");
   const brandText = document.getElementById("brandColorText");
   if (brandPicker && brandText) {
-    if (brandText.value) brandPicker.value = brandText.value;
+    const syncBrandColor = (fromPicker) => {
+      let hex = (fromPicker ? brandPicker.value : brandText.value || "").trim().toUpperCase();
+      if (!hex) hex = "#1FB8B0";
+      if (hex[0] !== "#") hex = "#" + hex;
+      if (!/^#[0-9A-F]{6}$/.test(hex)) return;
+      brandPicker.value = hex;
+      brandText.value = hex;
+    };
+    syncBrandColor(false);
     brandPicker.addEventListener("input", () => {
-      brandText.value = brandPicker.value.toUpperCase();
+      syncBrandColor(true);
       scheduleAutosave();
     });
     brandText.addEventListener("input", () => {
-      if (/^#[0-9A-Fa-f]{6}$/.test(brandText.value)) brandPicker.value = brandText.value;
+      syncBrandColor(false);
+      scheduleAutosave();
     });
   }
 

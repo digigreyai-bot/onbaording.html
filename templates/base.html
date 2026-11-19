@@ -75,7 +75,7 @@
       color: #0f8f89;
       font-weight: 700;
     }
-    /* Match agentassistplus.com/contact phone field */
+    /* Match agentassistplus.com/contact phone field (flag + dial code + number) */
     .phone-box {
       display: flex;
       align-items: center;
@@ -92,35 +92,45 @@
     }
     .phone-box .iti {
       width: 100%;
-      display: flex;
-      align-items: center;
     }
-    .phone-box .iti__flag-container {
-      position: static;
-      margin-right: 0.75rem;
+    .phone-box .iti__country-container {
+      margin-right: 0.5rem;
     }
-    .phone-box .iti__selected-flag {
+    .phone-box .iti__selected-country {
       background: transparent !important;
-      padding: 0 0.35rem 0 0 !important;
+      padding: 0 !important;
       border: none !important;
+    }
+    .phone-box .iti__selected-country-primary {
+      padding: 0 !important;
+      background: transparent !important;
+    }
+    .phone-box .iti__selected-dial-code {
+      color: #1f2937 !important;
+      font-size: 1rem !important;
+      font-weight: 500;
+      margin-left: 0.35rem;
     }
     .phone-box .iti__tel-input {
       width: 100% !important;
       border: none !important;
       background: transparent !important;
       box-shadow: none !important;
-      padding: 0 !important;
+      padding: 0 0 0 0.35rem !important;
       margin: 0 !important;
       font-size: 1rem !important;
       color: #1f2937 !important;
       outline: none !important;
       height: auto !important;
+      line-height: 1.5 !important;
     }
     .phone-box .iti__tel-input::placeholder {
       color: #6b7280;
     }
-    .phone-box .iti--allow-dropdown .iti__flag-container:hover .iti__selected-flag {
-      background: transparent !important;
+    .phone-box .iti__dropdown-content {
+      border-radius: 0.75rem;
+      border: 1px solid #d7e2ea;
+      box-shadow: 0 12px 30px rgba(11, 31, 58, 0.12);
     }
     .btn-brand {
       background: #1fb8b0;
@@ -132,7 +142,26 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/css/intlTelInput.css" />
   {% block head %}{% endblock %}
 </head>
-<body class="aa-grid text-aa-ink">
-  {% block body %}{% endblock %}
+<body class="aa-grid text-aa-ink flex flex-col min-h-screen">
+  <div class="flex-1">
+    {% block body %}{% endblock %}
+  </div>
+  {% block footer %}
+  <footer class="mt-10 border-t border-aa-line bg-white/90">
+    <div class="max-w-5xl mx-auto px-4 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-sm text-aa-muted">
+      <div class="flex items-center gap-3">
+        <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-8 w-auto" />
+        <span>© <span id="aaYear"></span> AgentAssist+. All rights reserved.</span>
+      </div>
+      <div class="flex flex-wrap gap-4 font-semibold">
+        <a href="https://agentassistplus.com" target="_blank" rel="noopener noreferrer" class="hover:text-aa-navy">Home</a>
+        <a href="https://agentassistplus.com/contact" target="_blank" rel="noopener noreferrer" class="hover:text-aa-navy">Contact</a>
+        <a href="https://agentassistplus.com/privacy-policy" target="_blank" rel="noopener noreferrer" class="hover:text-aa-navy">Privacy</a>
+        <a href="https://dashboard.agentassistplus.com" target="_blank" rel="noopener noreferrer" class="hover:text-aa-navy">Dashboard</a>
+      </div>
+    </div>
+  </footer>
+  <script>document.getElementById("aaYear").textContent = String(new Date().getFullYear());</script>
+  {% endblock %}
 </body>
 </html>

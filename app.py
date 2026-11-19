@@ -62,6 +62,7 @@ FILE_FIELDS = {
 }
 TEXT_PREFIXES = (
     "common__",
+    "avatar__",
     "smartgrid__",
     "leadflow__",
     "callpilot__",
@@ -402,6 +403,12 @@ def compute_pending(
             pending.append("Avatar video")
         if not _has_any_slot(files, "avatar__voice_sample"):
             pending.append("Voice sample")
+        if not str(payload.get("avatar__clothing_style") or "").strip():
+            pending.append("Avatar clothing style")
+
+    if "smart-grid" in products:
+        if not str(payload.get("smartgrid__sources") or "").strip():
+            pending.append("Smart Grid content sources")
 
     if "smart-grid" in products or "market-pulse" in products:
         if not _has_any_slot(files, "common__logo") and not _has_any_slot(files, "smartgrid__logo") and not _has_any_slot(files, "marketpulse__logo"):
