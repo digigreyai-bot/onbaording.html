@@ -40,6 +40,22 @@ PRODUCT_OPTIONS = [
     ("smart-grid", "Smart Grid"),
 ]
 PRODUCT_LABELS = dict(PRODUCT_OPTIONS)
+PACKAGE_LABELS = {
+    "basic": "Basic",
+    "growth": "Growth",
+    "premium": "Premium",
+}
+
+
+def normalize_package(raw: Optional[str]) -> str:
+    key = (raw or "").strip().lower()
+    if key in PACKAGE_LABELS:
+        return key
+    # Accept display names too.
+    for slug, label in PACKAGE_LABELS.items():
+        if key == label.lower():
+            return slug
+    return ""
 
 
 def file_slots(base: str) -> List[str]:
@@ -112,12 +128,14 @@ def create_invite_from_payload(
     connect_url_avatar: str = "",
     connect_url_vtour: str = "",
     connect_url_smartgrid: str = "",
+    package: str = "",
 ) -> tuple[Optional[dict], Optional[str]]:
     label = (label or "").strip()
     products = [p for p in products if p in PRODUCT_LABELS]
     avatar = (connect_url_avatar or "").strip()
     vtour = (connect_url_vtour or "").strip()
     smart = (connect_url_smartgrid or "").strip()
+    pkg = normalize_package(package)
 
     if not label:
         return None, "Client label is required."
@@ -139,6 +157,7 @@ def create_invite_from_payload(
         connect_url_avatar=avatar or None,
         connect_url_vtour=vtour or None,
         connect_url_smartgrid=smart or None,
+        package=pkg or None,
     )
     return invite, None
 
@@ -464,6 +483,8 @@ def form_context(
     phone_raw = (submission or {}).get("phone") or ""
     dial, national = split_phone(phone_raw, payload)
     client_name = (invite.get("label") or "").strip()
+    package_slug = normalize_package(invite.get("package") or "")
+    package_label = PACKAGE_LABELS.get(package_slug, "")
     show_logo = "smart-grid" in products or "market-pulse" in products
     show_projects = "lead-flow-call" in products or "call-pilot" in products
     show_brand = True
@@ -488,6 +509,8 @@ def form_context(
         "token": token,
         "products": products,
         "product_labels": PRODUCT_LABELS,
+        "package_slug": package_slug,
+        "package_label": package_label,
         **client_connect_context(invite),
         "error": error,
         "pending": pending,
@@ -582,6 +605,7 @@ async def admin_create_invite(
     connect_url_avatar: str = Form(""),
     connect_url_vtour: str = Form(""),
     connect_url_smartgrid: str = Form(""),
+    package: str = Form(""),
     products: List[str] = Form([]),
 ):
     if not auth.is_admin(request):
@@ -593,6 +617,7 @@ async def admin_create_invite(
         connect_url_avatar=connect_url_avatar,
         connect_url_vtour=connect_url_vtour,
         connect_url_smartgrid=connect_url_smartgrid,
+        package=package,
     )
     if error:
         return admin_home(request, error=error)
@@ -605,6 +630,7 @@ class InviteCreateBody(BaseModel):
     connect_url_avatar: str = ""
     connect_url_vtour: str = ""
     connect_url_smartgrid: str = ""
+    package: str = ""
 
 
 @app.post("/api/invites")
@@ -628,6 +654,7 @@ async def api_create_invite(
         connect_url_avatar=str(payload.connect_url_avatar or ""),
         connect_url_vtour=str(payload.connect_url_vtour or ""),
         connect_url_smartgrid=str(payload.connect_url_smartgrid or ""),
+        package=str(payload.package or ""),
     )
     if error:
         return JSONResponse({"error": error}, status_code=400)
@@ -639,6 +666,7 @@ async def api_create_invite(
         "formUrl": client_form_url(request, token),
         "label": invite.get("label"),
         "products": invite.get("products") or [],
+        "package": invite.get("package"),
     }
 
 

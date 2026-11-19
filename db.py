@@ -76,7 +76,7 @@ def init_db() -> None:
             """
         )
         cols = _table_columns(conn, "invites")
-        for col in ("connect_url_avatar", "connect_url_vtour", "connect_url_smartgrid"):
+        for col in ("connect_url_avatar", "connect_url_vtour", "connect_url_smartgrid", "package"):
             if col not in cols:
                 conn.execute(f"ALTER TABLE invites ADD COLUMN {col} TEXT")
         sub_cols = _table_columns(conn, "submissions")
@@ -141,21 +141,23 @@ def create_invite(
     connect_url_avatar: Optional[str] = None,
     connect_url_vtour: Optional[str] = None,
     connect_url_smartgrid: Optional[str] = None,
+    package: Optional[str] = None,
 ) -> Dict[str, Any]:
     token = secrets.token_urlsafe(24)
     products_list = list(products)
     avatar = (connect_url_avatar or "").strip() or None
     vtour = (connect_url_vtour or "").strip() or None
     smart = (connect_url_smartgrid or "").strip() or None
+    pkg = (package or "").strip().lower() or None
     with connect() as conn:
         cur = conn.execute(
             """
             INSERT INTO invites (
               token, label, products, connect_url,
               connect_url_avatar, connect_url_vtour, connect_url_smartgrid,
-              status, created_at
+              package, status, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
             """,
             (
                 token,
@@ -165,6 +167,7 @@ def create_invite(
                 avatar,
                 vtour,
                 smart,
+                pkg,
                 utc_now(),
             ),
         )

@@ -30,9 +30,13 @@
 
   <div class="bg-white/90 backdrop-blur rounded-2xl shadow-panel border border-aa-line p-5 md:p-8">
     <div class="flex flex-wrap gap-2 mb-6">
+      {% if package_label %}
+      <span class="px-4 py-2 rounded-lg bg-aa-navy text-white text-sm font-semibold tracking-wide">{{ package_label }} package</span>
+      {% else %}
       {% for key in products %}
       <span class="px-3 py-1.5 rounded-lg bg-aa-navy text-white text-xs font-semibold tracking-wide">{{ product_labels.get(key, key) }}</span>
       {% endfor %}
+      {% endif %}
     </div>
 
     {% if error %}

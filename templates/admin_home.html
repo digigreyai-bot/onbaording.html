@@ -28,6 +28,15 @@
           <input required name="label" placeholder="e.g. Asim / ABC Realty" class="w-full border rounded px-3 py-2" />
         </div>
         <div>
+          <label class="text-sm font-medium">Package</label>
+          <select name="package" class="w-full border rounded px-3 py-2 bg-white">
+            <option value="">(optional)</option>
+            <option value="basic">Basic</option>
+            <option value="growth">Growth</option>
+            <option value="premium">Premium</option>
+          </select>
+        </div>
+        <div>
           <label class="text-sm font-medium block mb-2">Products *</label>
           <div class="flex flex-wrap gap-3 text-sm">
             {% for key, label in product_options %}
@@ -63,6 +72,7 @@
             <tr class="text-left border-b bg-slate-50">
               <th class="p-2">ID</th>
               <th class="p-2">Label</th>
+              <th class="p-2">Package</th>
               <th class="p-2">Products</th>
               <th class="p-2">Status</th>
               <th class="p-2">Created</th>
@@ -74,6 +84,7 @@
             <tr class="border-b">
               <td class="p-2">{{ inv.id }}</td>
               <td class="p-2 font-medium">{{ inv.label }}</td>
+              <td class="p-2">{% if inv.package %}{{ inv.package|capitalize }}{% else %}<span class="text-slate-400">-</span>{% endif %}</td>
               <td class="p-2">{{ inv.products | join(", ") }}</td>
               <td class="p-2">
                 {% if inv.status == "submitted" %}
