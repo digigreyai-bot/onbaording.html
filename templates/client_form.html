@@ -4,7 +4,7 @@
 <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
   <header class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
     <div>
-      <img src="/static/logo.png" alt="AgentAssist+" class="h-12 md:h-14 w-auto" />
+      <img src="/static/logo.png" alt="AgentAssist+" class="h-12 md:h-14 w-auto" width="180" height="56" />
       <p class="mt-3 text-sm font-medium text-aa-tealDeep tracking-wide uppercase">Client onboarding</p>
       <h1 class="text-3xl md:text-4xl font-extrabold text-aa-navy mt-1">
         {% if client_name %}Welcome, {{ client_name }}{% else %}Welcome{% endif %}
@@ -25,23 +25,6 @@
   </header>
 
   <div class="bg-white/90 backdrop-blur rounded-2xl shadow-panel border border-aa-line p-5 md:p-8">
-    {% if pending and pending|length > 0 %}
-    <div id="pendingBox" class="mb-6 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-950">
-      <p class="font-bold">Still needed before submit</p>
-      <ul id="pendingList" class="list-disc ml-5 mt-2 text-sm space-y-1">
-        {% for item in pending %}
-        <li>{{ item }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-    {% else %}
-    <div id="pendingBox" class="mb-6 p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900 {% if not submission %}hidden{% endif %}">
-      <p class="font-bold">Ready to submit</p>
-      <ul id="pendingList" class="hidden list-disc ml-5 mt-2 text-sm space-y-1"></ul>
-      <p id="readyNote" class="text-sm mt-1">All required items look complete. Review once, then submit.</p>
-    </div>
-    {% endif %}
-
     <div class="flex flex-wrap gap-2 mb-6">
       {% for key in products %}
       <span class="px-3 py-1.5 rounded-lg bg-aa-navy text-white text-xs font-semibold tracking-wide">{{ product_labels.get(key, key) }}</span>
@@ -57,54 +40,27 @@
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">1 · Basic information</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Company name</label>
+            <label class="text-sm font-semibold text-aa-navy">Company name <span class="req">*</span></label>
             <input name="common__company" value="{{ company }}" data-autosave class="field-input mt-1" autocomplete="organization" />
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Phone number</label>
-            <div class="mt-1 flex gap-2">
-              <select name="common__phone_dial" data-autosave class="field-input w-[7.5rem] shrink-0">
-                {% set dials = [
-                  ('+1', 'CA/US +1'),
-                  ('+44', 'UK +44'),
-                  ('+971', 'UAE +971'),
-                  ('+966', 'KSA +966'),
-                  ('+61', 'AU +61'),
-                  ('+64', 'NZ +64'),
-                  ('+91', 'IN +91'),
-                  ('+92', 'PK +92'),
-                  ('+49', 'DE +49'),
-                  ('+33', 'FR +33'),
-                  ('+34', 'ES +34'),
-                  ('+39', 'IT +39'),
-                  ('+31', 'NL +31'),
-                  ('+65', 'SG +65'),
-                  ('+852', 'HK +852'),
-                  ('+81', 'JP +81'),
-                  ('+82', 'KR +82'),
-                  ('+55', 'BR +55'),
-                  ('+52', 'MX +52'),
-                  ('+27', 'ZA +27'),
-                  ('+234', 'NG +234'),
-                  ('+254', 'KE +254')
-                ] %}
-                {% for code, label in dials %}
-                <option value="{{ code }}" {% if phone_dial == code %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-              <input name="common__phone_national" value="{{ phone_national }}" data-autosave type="tel" inputmode="tel" placeholder="Phone number" class="field-input" autocomplete="tel-national" />
+            <label class="text-sm font-semibold text-aa-navy">Phone number <span class="req">*</span></label>
+            <div class="phone-box mt-1">
+              <input id="phoneVisible" type="tel" value="{{ phone_national or phone }}" class="w-full" autocomplete="tel" placeholder="Enter phone number" />
             </div>
+            <input type="hidden" name="common__phone" id="phoneFull" value="{{ phone }}" data-autosave />
+            <input type="hidden" name="common__phone_dial" id="phoneDial" value="{{ phone_dial }}" data-autosave />
+            <input type="hidden" name="common__phone_national" id="phoneNational" value="{{ phone_national }}" data-autosave />
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">City</label>
+            <label class="text-sm font-semibold text-aa-navy">City <span class="req">*</span></label>
             <input name="common__city" value="{{ city }}" data-autosave class="field-input mt-1" autocomplete="address-level2" />
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Country</label>
+            <label class="text-sm font-semibold text-aa-navy">Country <span class="req">*</span></label>
             <input name="common__country" value="{{ country }}" data-autosave class="field-input mt-1" autocomplete="country-name" />
           </div>
         </div>
-        <p class="text-xs text-aa-muted mt-3">Required: company, phone, city, and country.</p>
       </section>
 
       {% if show_social %}
@@ -118,7 +74,7 @@
           </div>
           <div class="flex flex-wrap gap-2">
             <a href="{{ connect_primary_url }}" target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center px-3 py-2 rounded-lg bg-aa-navy text-white text-xs font-semibold">
+               class="inline-flex items-center px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">
               Open connect page
             </a>
             <button type="button" id="reloadSocialFrame"
@@ -156,37 +112,58 @@
       </section>
       {% endif %}
 
-      {% if show_shared_logo or show_shared_projects %}
+      {% if show_brand_assets %}
       <section class="section-card">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Shared brand assets</h2>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Brand assets</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           {% if show_shared_logo %}
-          <div>
+          <div class="md:col-span-2">
             <label class="text-sm font-semibold text-aa-navy">Business logo / visiting card</label>
-            {% if shared_logo_name %}
-            <p class="text-xs text-emerald-700 mt-1 mb-1" data-file-status="common__logo">Uploaded: {{ shared_logo_name }}</p>
-            {% else %}
-            <p class="text-xs text-aa-muted mt-1 mb-1 hidden" data-file-status="common__logo"></p>
-            {% endif %}
-            <input type="file" name="common__logo" data-upload accept="image/*,.pdf,.png,.jpg,.jpeg,.webp,.svg" class="field-input mt-1" />
-            <p class="text-xs text-aa-muted mt-1">Used once for Smart Grid and Market Pulse. Max 1 file.</p>
-          </div>
-          {% endif %}
-          {% if show_shared_projects %}
-          <div class="{% if not show_shared_logo %}md:col-span-2{% endif %}">
-            <label class="text-sm font-semibold text-aa-navy">Current projects</label>
-            <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste project bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
-            <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload project files (max {{ max_project_files }})</label>
-            <div class="space-y-1 mt-1 mb-2" id="projectUploadList">
-              {% for item in project_uploads %}
+            <div class="space-y-1 mt-1 mb-2" data-upload-list="common__logo">
+              {% for item in logo_uploads %}
               <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
               {% endfor %}
             </div>
-            <input type="file" id="projectsMulti" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" class="field-input" multiple />
-            <p class="text-xs text-aa-muted mt-1">Shared across LeadFlow and Call Pilot when both are included. Up to {{ max_project_files }} files.</p>
+            <input type="file" data-upload-group="common__logo" accept="image/*,.pdf,.png,.jpg,.jpeg,.webp,.svg" class="field-input" multiple />
+            <p class="text-xs text-aa-muted mt-1">Max {{ max_files_per_field }} files.</p>
           </div>
           {% endif %}
+          <div>
+            <label class="text-sm font-semibold text-aa-navy">Brand tagline</label>
+            <input name="common__tagline" value="{{ payload.get('common__tagline', payload.get('smartgrid__tagline', '')) }}" data-autosave class="field-input mt-1" placeholder="Short line under your brand name" />
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-aa-navy">Brand color</label>
+            <div class="mt-1 flex gap-2 items-center">
+              <input type="color" id="brandColorPicker" value="{{ payload.get('common__brand_color', '#1FB8B0') }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
+              <input name="common__brand_color" id="brandColorText" value="{{ payload.get('common__brand_color', '') }}" data-autosave class="field-input" placeholder="#1FB8B0" />
+            </div>
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-aa-navy">Website</label>
+            <input name="common__website" type="url" value="{{ payload.get('common__website', '') }}" data-autosave class="field-input mt-1" placeholder="https://" />
+          </div>
+          <div>
+            <label class="text-sm font-semibold text-aa-navy">Brand voice / style notes</label>
+            <input name="common__brand_notes" value="{{ payload.get('common__brand_notes', '') }}" data-autosave class="field-input mt-1" placeholder="Tone, words to use or avoid" />
+          </div>
         </div>
+      </section>
+      {% endif %}
+
+      {% if show_shared_projects %}
+      <section class="section-card">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Projects</h2>
+        <label class="text-sm font-semibold text-aa-navy">Current projects <span class="req">*</span></label>
+        <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste project bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
+        <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload project files</label>
+        <div class="space-y-1 mt-1 mb-2" data-upload-list="common__projects_file">
+          {% for item in project_uploads %}
+          <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+          {% endfor %}
+        </div>
+        <input type="file" data-upload-group="common__projects_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" class="field-input" multiple />
+        <p class="text-xs text-aa-muted mt-1">Shared across LeadFlow and Call Pilot when both are included. Max {{ max_files_per_field }} files.</p>
       </section>
       {% endif %}
 
@@ -196,24 +173,24 @@
         <p class="text-sm text-aa-muted mb-4">Flow: news/script → client approve → avatar reel (9:16) → posting.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Avatar video</label>
-            {% if uploaded_files.get("avatar__video") %}
-            <p class="text-xs text-emerald-700 mt-1 mb-1" data-file-status="avatar__video">Uploaded: {{ uploaded_files.get("avatar__video") }}</p>
-            {% else %}
-            <p class="text-xs text-aa-muted mt-1 mb-1 hidden" data-file-status="avatar__video"></p>
-            {% endif %}
-            <input type="file" name="avatar__video" data-upload accept="video/*,.mp4,.mov,.webm,.mkv" class="field-input" />
-            <p class="text-xs text-aa-muted mt-1">Clear face video (MP4/MOV), about 10–30 seconds. Max 1 file.</p>
+            <label class="text-sm font-semibold text-aa-navy">Avatar video <span class="req">*</span></label>
+            <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__video">
+              {% for item in avatar_video_uploads %}
+              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+              {% endfor %}
+            </div>
+            <input type="file" data-upload-group="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="field-input" multiple />
+            <p class="text-xs text-aa-muted mt-1">Clear face video (MP4/MOV), about 10–30 seconds. Max {{ max_files_per_field }} files.</p>
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Voice sample</label>
-            {% if uploaded_files.get("avatar__voice_sample") %}
-            <p class="text-xs text-emerald-700 mt-1 mb-1" data-file-status="avatar__voice_sample">Uploaded: {{ uploaded_files.get("avatar__voice_sample") }}</p>
-            {% else %}
-            <p class="text-xs text-aa-muted mt-1 mb-1 hidden" data-file-status="avatar__voice_sample"></p>
-            {% endif %}
-            <input type="file" name="avatar__voice_sample" data-upload accept="audio/*,.mp3,.wav,.m4a,.ogg" class="field-input" />
-            <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max 1 file.</p>
+            <label class="text-sm font-semibold text-aa-navy">Voice sample <span class="req">*</span></label>
+            <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__voice_sample">
+              {% for item in avatar_voice_uploads %}
+              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+              {% endfor %}
+            </div>
+            <input type="file" data-upload-group="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="field-input" multiple />
+            <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
           </div>
         </div>
       </section>
@@ -222,17 +199,8 @@
       {% if "smart-grid" in products %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Smart Grid</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label class="text-sm font-semibold text-aa-navy">Brand tagline (optional)</label>
-            <input name="smartgrid__tagline" value="{{ payload.get('smartgrid__tagline', '') }}" data-autosave class="field-input mt-1" />
-          </div>
-          <div class="md:col-span-2">
-            <label class="text-sm font-semibold text-aa-navy">Content sources</label>
-            <textarea name="smartgrid__sources" rows="2" data-autosave class="field-input mt-1">{{ payload.get('smartgrid__sources', '') }}</textarea>
-          </div>
-        </div>
-        <p class="text-xs text-aa-muted mt-2">Logo is collected once under Shared brand assets.</p>
+        <label class="text-sm font-semibold text-aa-navy">Content sources</label>
+        <textarea name="smartgrid__sources" rows="2" data-autosave class="field-input mt-1">{{ payload.get('smartgrid__sources', '') }}</textarea>
       </section>
       {% endif %}
 
@@ -249,19 +217,13 @@
             <input type="password" name="leadflow__api" value="{{ payload.get('leadflow__api', '') }}" data-autosave class="field-input mt-1" autocomplete="new-password" />
           </div>
         </div>
-        <p class="text-xs text-aa-muted mt-2">Projects are collected once under Shared brand assets.</p>
       </section>
       {% endif %}
 
-      {% if "call-pilot" in products and "lead-flow-call" not in products %}
+      {% if "call-pilot" in products %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-2">Call Pilot</h2>
-        <p class="text-sm text-aa-muted">Projects for Call Pilot are collected under Shared brand assets.</p>
-      </section>
-      {% elif "call-pilot" in products %}
-      <section class="section-card">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-2">Call Pilot</h2>
-        <p class="text-sm text-aa-muted">Uses the same project details as LeadFlow above.</p>
+        <p class="text-sm text-aa-muted">Project details are collected in the Projects section above.</p>
       </section>
       {% endif %}
 
@@ -270,11 +232,11 @@
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Market Pulse</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Sender email</label>
+            <label class="text-sm font-semibold text-aa-navy">Sender email <span class="req">*</span></label>
             <input type="email" name="marketpulse__email" value="{{ payload.get('marketpulse__email', '') }}" data-autosave class="field-input mt-1" />
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Email app password</label>
+            <label class="text-sm font-semibold text-aa-navy">Email app password <span class="req">*</span></label>
             {% if payload.get('marketpulse__app_password') %}
             <p class="text-xs text-emerald-700 mt-1 mb-1">Already saved. Leave blank to keep.</p>
             {% endif %}
@@ -286,13 +248,13 @@
           </div>
           <div class="md:col-span-2">
             <label class="text-sm font-semibold text-aa-navy">Lead database spreadsheet (CSV/XLSX/XLS)</label>
-            {% if uploaded_files.get("marketpulse__leads") %}
-            <p class="text-xs text-emerald-700 mt-1 mb-1" data-file-status="marketpulse__leads">Uploaded: {{ uploaded_files.get("marketpulse__leads") }}</p>
-            {% else %}
-            <p class="text-xs text-aa-muted mt-1 mb-1 hidden" data-file-status="marketpulse__leads"></p>
-            {% endif %}
-            <input type="file" name="marketpulse__leads" data-upload accept=".csv,.xls,.xlsx" class="field-input" />
-            <p class="text-xs text-aa-muted mt-1">Max 1 file. Logo is under Shared brand assets.</p>
+            <div class="space-y-1 mt-1 mb-2" data-upload-list="marketpulse__leads">
+              {% for item in leads_uploads %}
+              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+              {% endfor %}
+            </div>
+            <input type="file" data-upload-group="marketpulse__leads" accept=".csv,.xls,.xlsx" class="field-input" multiple />
+            <p class="text-xs text-aa-muted mt-1">Max {{ max_files_per_field }} files.</p>
           </div>
         </div>
       </section>
@@ -300,13 +262,14 @@
 
       <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pt-2">
         <p id="uploadProgress" class="text-sm text-aa-tealDeep hidden"></p>
-        <button id="submitBtn" class="px-8 py-3 rounded-xl bg-aa-navy hover:bg-aa-ink text-white font-bold shadow-panel transition" type="submit">
+        <button id="submitBtn" class="px-8 py-3 rounded-xl btn-brand text-white font-bold shadow-panel transition" type="submit">
           Submit onboarding
         </button>
       </div>
     </form>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/intlTelInput.min.js"></script>
 <script>
   (function () {
     const frame = document.getElementById("socialConnectFrame");
@@ -325,19 +288,43 @@
 
   const CHUNK_BYTES = 2 * 1024 * 1024;
   const MAX_RETRIES = 5;
-  const MAX_PROJECT_FILES = {{ max_project_files | tojson }};
+  const MAX_FILES = {{ max_files_per_field | tojson }};
   const formEl = document.getElementById("onboardingForm");
   const progressEl = document.getElementById("uploadProgress");
   const submitBtn = document.getElementById("submitBtn");
   const saveStatus = document.getElementById("saveStatus");
-  const pendingBox = document.getElementById("pendingBox");
-  const pendingList = document.getElementById("pendingList");
-  const readyNote = document.getElementById("readyNote");
   const token = {{ token | tojson }};
-  const projectSlots = {};
-  {% for item in project_uploads %}
-  projectSlots[{{ item.field | tojson }}] = true;
-  {% endfor %}
+  const uploadSlots = {};
+
+  function initGroupSlots(base, initialFields) {
+    uploadSlots[base] = {};
+    (initialFields || []).forEach((field) => {
+      uploadSlots[base][field] = true;
+    });
+  }
+
+  initGroupSlots("common__logo", [{% for item in logo_uploads %}{{ item.field | tojson }},{% endfor %}]);
+  initGroupSlots("common__projects_file", [{% for item in project_uploads %}{{ item.field | tojson }},{% endfor %}]);
+  initGroupSlots("avatar__video", [{% for item in avatar_video_uploads %}{{ item.field | tojson }},{% endfor %}]);
+  initGroupSlots("avatar__voice_sample", [{% for item in avatar_voice_uploads %}{{ item.field | tojson }},{% endfor %}]);
+  initGroupSlots("marketpulse__leads", [{% for item in leads_uploads %}{{ item.field | tojson }},{% endfor %}]);
+
+  function slotName(base, index) {
+    if (base === "common__projects_file") return base + "_" + index;
+    return index === 1 ? base : base + "_" + index;
+  }
+
+  function usedCount(base) {
+    return Object.keys(uploadSlots[base] || {}).length;
+  }
+
+  function nextSlot(base) {
+    for (let i = 1; i <= MAX_FILES; i++) {
+      const key = slotName(base, i);
+      if (!uploadSlots[base][key]) return key;
+    }
+    return null;
+  }
 
   function setProgress(msg) {
     if (!progressEl) return;
@@ -354,59 +341,24 @@
     if (!saveStatus) return;
     saveStatus.textContent = text;
     saveStatus.className = "save-pill text-xs font-semibold px-3 py-1.5 rounded-full border ";
-    if (tone === "ok") {
-      saveStatus.className += "bg-emerald-50 border-emerald-200 text-emerald-800";
-    } else if (tone === "err") {
-      saveStatus.className += "bg-red-50 border-red-200 text-red-800";
-    } else if (tone === "busy") {
-      saveStatus.className += "bg-aa-mist border-aa-line text-aa-navy";
-    } else {
-      saveStatus.className += "bg-white border-aa-line text-aa-muted";
-    }
+    if (tone === "ok") saveStatus.className += "bg-emerald-50 border-emerald-200 text-emerald-800";
+    else if (tone === "err") saveStatus.className += "bg-red-50 border-red-200 text-red-800";
+    else if (tone === "busy") saveStatus.className += "bg-aa-mist border-aa-line text-aa-navy";
+    else saveStatus.className += "bg-white border-aa-line text-aa-muted";
   }
 
-  function updatePendingUI(pending) {
-    if (!pendingBox || !pendingList) return;
-    const items = Array.isArray(pending) ? pending : [];
-    pendingList.innerHTML = "";
-    if (!items.length) {
-      pendingBox.className = "mb-6 p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-900";
-      pendingList.classList.add("hidden");
-      if (readyNote) {
-        readyNote.classList.remove("hidden");
-        readyNote.textContent = "All required items look complete. Review once, then submit.";
-      } else {
-        const p = document.createElement("p");
-        p.id = "readyNote";
-        p.className = "text-sm mt-1";
-        p.textContent = "All required items look complete. Review once, then submit.";
-        pendingBox.appendChild(p);
-      }
-      const title = pendingBox.querySelector("p.font-bold");
-      if (title) title.textContent = "Ready to submit";
-      pendingBox.classList.remove("hidden");
-      return;
+  function markUploaded(base, field, displayName) {
+    uploadSlots[base][field] = true;
+    const list = document.querySelector('[data-upload-list="' + base + '"]');
+    if (!list) return;
+    let el = list.querySelector('[data-file-status="' + field + '"]');
+    if (!el) {
+      el = document.createElement("p");
+      el.className = "text-xs text-emerald-700";
+      el.setAttribute("data-file-status", field);
+      list.appendChild(el);
     }
-    pendingBox.className = "mb-6 p-4 rounded-xl border border-amber-200 bg-amber-50 text-amber-950";
-    pendingList.classList.remove("hidden");
-    if (readyNote) readyNote.classList.add("hidden");
-    const title = pendingBox.querySelector("p.font-bold");
-    if (title) title.textContent = "Still needed before submit";
-    items.forEach((item) => {
-      const li = document.createElement("li");
-      li.textContent = item;
-      pendingList.appendChild(li);
-    });
-    pendingBox.classList.remove("hidden");
-  }
-
-  function markFileUploaded(field, displayName) {
-    const el = document.querySelector('[data-file-status="' + field + '"]');
-    if (!el) return;
     el.textContent = "Uploaded: " + displayName;
-    el.classList.remove("hidden");
-    el.classList.remove("text-aa-muted");
-    el.classList.add("text-emerald-700");
   }
 
   function newUploadId() {
@@ -458,7 +410,6 @@
     const uploadId = newUploadId();
     let storedName = null;
     let displayName = file.name;
-    let pending = null;
     for (let i = 0; i < totalChunks; i++) {
       const start = i * CHUNK_BYTES;
       const blob = file.slice(start, Math.min(file.size, start + CHUNK_BYTES));
@@ -492,19 +443,66 @@
       if (lastErr) {
         throw new Error(
           "Upload failed for " + file.name + ": " +
-          ((lastErr && lastErr.message) || "network error") +
-          ". Try again; progress may resume from this form."
+          ((lastErr && lastErr.message) || "network error")
         );
       }
       setProgress("Uploading " + file.name + "… " + Math.round(((i + 1) / totalChunks) * 100) + "%");
       if (data.done) {
         storedName = data.stored_name;
         displayName = data.display_name || file.name;
-        pending = data.pending || null;
       }
     }
     if (!storedName) throw new Error("Upload did not finish: " + file.name);
-    return { storedName, displayName, pending };
+    return { storedName, displayName };
+  }
+
+  // Phone input (same pattern as agentassistplus.com/contact)
+  const phoneVisible = document.getElementById("phoneVisible");
+  const phoneFull = document.getElementById("phoneFull");
+  const phoneDial = document.getElementById("phoneDial");
+  const phoneNational = document.getElementById("phoneNational");
+  let iti = null;
+  if (phoneVisible && window.intlTelInput) {
+    iti = window.intlTelInput(phoneVisible, {
+      initialCountry: "auto",
+      geoIpLookup: (cb) => {
+        fetch("https://ipapi.co/json/")
+          .then((r) => r.json())
+          .then((d) => cb((d && d.country_code) || "ca"))
+          .catch(() => cb("ca"));
+      },
+      separateDialCode: true,
+      nationalMode: true,
+      autoPlaceholder: "aggressive",
+      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/utils.js",
+    });
+    const syncPhone = () => {
+      if (!iti) return;
+      const data = iti.getSelectedCountryData() || {};
+      const dial = data.dialCode ? ("+" + data.dialCode) : "";
+      const national = phoneVisible.value || "";
+      const full = iti.getNumber() || (dial && national ? dial + " " + national : national);
+      if (phoneDial) phoneDial.value = dial;
+      if (phoneNational) phoneNational.value = national;
+      if (phoneFull) phoneFull.value = full;
+    };
+    phoneVisible.addEventListener("input", () => { syncPhone(); scheduleAutosave(); });
+    phoneVisible.addEventListener("countrychange", () => { syncPhone(); scheduleAutosave(); });
+    phoneVisible.addEventListener("blur", () => { syncPhone(); runAutosave(); });
+    syncPhone();
+  }
+
+  const brandPicker = document.getElementById("brandColorPicker");
+  const brandText = document.getElementById("brandColorText");
+  if (brandPicker && brandText) {
+    if (brandText.value) brandPicker.value = brandText.value;
+    brandPicker.addEventListener("input", () => {
+      brandText.value = brandPicker.value.toUpperCase();
+      scheduleAutosave();
+    });
+    brandText.addEventListener("input", () => {
+      if (/^#[0-9A-Fa-f]{6}$/.test(brandText.value)) brandPicker.value = brandText.value;
+    });
   }
 
   let autosaveTimer = null;
@@ -532,10 +530,7 @@
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        throw new Error((data && data.error) || "Autosave failed");
-      }
-      updatePendingUI(data.pending || []);
+      if (!res.ok || !data.ok) throw new Error((data && data.error) || "Autosave failed");
       setSaveStatus("Saved just now", "ok");
     } catch (err) {
       setSaveStatus((err && err.message) || "Could not save", "err");
@@ -560,82 +555,52 @@
       });
     });
 
-    formEl.querySelectorAll("[data-upload]").forEach((inp) => {
+    formEl.querySelectorAll("[data-upload-group]").forEach((inp) => {
+      const base = inp.getAttribute("data-upload-group");
       inp.addEventListener("change", async () => {
-        const file = inp.files && inp.files[0];
-        if (!file || !inp.name) return;
-        try {
-          setSaveStatus("Uploading file…", "busy");
-          const result = await uploadFileChunked(file, inp.name);
-          markFileUploaded(inp.name, result.displayName);
-          if (result.pending) updatePendingUI(result.pending);
+        const files = Array.from(inp.files || []);
+        if (!files.length) return;
+        const remaining = Math.max(0, MAX_FILES - usedCount(base));
+        if (!remaining) {
+          alert("You already uploaded " + MAX_FILES + " files for this field.");
           inp.value = "";
+          return;
+        }
+        const batch = files.slice(0, remaining);
+        if (files.length > remaining) {
+          alert("Only " + remaining + " more file(s) allowed (max " + MAX_FILES + ").");
+        }
+        try {
+          for (const file of batch) {
+            const slot = nextSlot(base);
+            if (!slot) break;
+            setSaveStatus("Uploading file…", "busy");
+            const result = await uploadFileChunked(file, slot);
+            markUploaded(base, slot, result.displayName);
+          }
           setProgress("");
           setSaveStatus("File saved", "ok");
         } catch (err) {
           setProgress("");
           setSaveStatus((err && err.message) || "Upload failed", "err");
           alert((err && err.message) || "Upload failed. Please try again.");
+        } finally {
+          inp.value = "";
         }
       });
     });
-  }
 
-  const projectsMulti = document.getElementById("projectsMulti");
-  if (projectsMulti) {
-    projectsMulti.addEventListener("change", async () => {
-      const files = Array.from(projectsMulti.files || []);
-      if (!files.length) return;
-      const used = Object.keys(projectSlots).length;
-      const remaining = Math.max(0, MAX_PROJECT_FILES - used);
-      if (!remaining) {
-        alert("You already uploaded " + MAX_PROJECT_FILES + " project files.");
-        projectsMulti.value = "";
-        return;
-      }
-      const batch = files.slice(0, remaining);
-      if (files.length > remaining) {
-        alert("Only " + remaining + " more file(s) allowed (max " + MAX_PROJECT_FILES + ").");
-      }
-      try {
-        for (const file of batch) {
-          let slot = null;
-          for (let i = 1; i <= MAX_PROJECT_FILES; i++) {
-            const key = "common__projects_file_" + i;
-            if (!projectSlots[key]) {
-              slot = key;
-              break;
-            }
-          }
-          if (!slot) break;
-          setSaveStatus("Uploading file…", "busy");
-          const result = await uploadFileChunked(file, slot);
-          projectSlots[slot] = true;
-          const list = document.getElementById("projectUploadList");
-          if (list) {
-            const p = document.createElement("p");
-            p.className = "text-xs text-emerald-700";
-            p.setAttribute("data-file-status", slot);
-            p.textContent = "Uploaded: " + result.displayName;
-            list.appendChild(p);
-          }
-          if (result.pending) updatePendingUI(result.pending);
-        }
-        setProgress("");
-        setSaveStatus("File saved", "ok");
-      } catch (err) {
-        setProgress("");
-        setSaveStatus((err && err.message) || "Upload failed", "err");
-        alert((err && err.message) || "Upload failed. Please try again.");
-      } finally {
-        projectsMulti.value = "";
-      }
-    });
-  }
-
-  if (formEl) {
     formEl.addEventListener("submit", async (ev) => {
       ev.preventDefault();
+      if (iti) {
+        const data = iti.getSelectedCountryData() || {};
+        const dial = data.dialCode ? ("+" + data.dialCode) : "";
+        const national = phoneVisible.value || "";
+        const full = iti.getNumber() || (dial && national ? dial + " " + national : national);
+        if (phoneDial) phoneDial.value = dial;
+        if (phoneNational) phoneNational.value = national;
+        if (phoneFull) phoneFull.value = full;
+      }
       clearTimeout(autosaveTimer);
       await runAutosave();
       if (submitBtn) {

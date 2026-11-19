@@ -30,7 +30,8 @@ ONBOARDING_HTML_API_KEY = (os.getenv("ONBOARDING_HTML_API_KEY") or "").strip()
 CONTACT_URL = (
     os.getenv("CONTACT_URL") or "https://agentassistplus.com/contact"
 ).strip()
-MAX_PROJECT_FILES = 3
+MAX_FILES_PER_FIELD = 3
+MAX_PROJECT_FILES = MAX_FILES_PER_FIELD
 PRODUCT_OPTIONS = [
     ("avatar-studio", "Avatar Studio"),
     ("lead-flow-call", "LeadFlow"),
@@ -39,15 +40,22 @@ PRODUCT_OPTIONS = [
     ("smart-grid", "Smart Grid"),
 ]
 PRODUCT_LABELS = dict(PRODUCT_OPTIONS)
+
+
+def file_slots(base: str) -> List[str]:
+    """Canonical Contabo key first, then _2 / _3 extras."""
+    return [base] + [f"{base}_{i}" for i in range(2, MAX_FILES_PER_FIELD + 1)]
+
+
 FILE_FIELDS = {
-    "avatar__video",
-    "avatar__voice_sample",
-    "common__logo",
-    "smartgrid__logo",
+    *file_slots("avatar__video"),
+    *file_slots("avatar__voice_sample"),
+    *file_slots("common__logo"),
+    *file_slots("smartgrid__logo"),
+    *file_slots("marketpulse__logo"),
+    *file_slots("marketpulse__leads"),
     "leadflow__projects_file",
     "callpilot__projects_file",
-    "marketpulse__logo",
-    "marketpulse__leads",
     *(f"common__projects_file_{i}" for i in range(1, MAX_PROJECT_FILES + 1)),
     *(f"leadflow__projects_file_{i}" for i in range(2, MAX_PROJECT_FILES + 1)),
     *(f"callpilot__projects_file_{i}" for i in range(2, MAX_PROJECT_FILES + 1)),
@@ -245,12 +253,17 @@ def display_filename(stored: str) -> str:
     return name
 
 
-def _has_logo(files: dict) -> bool:
-    return bool(
-        files.get("common__logo")
-        or files.get("smartgrid__logo")
-        or files.get("marketpulse__logo")
-    )
+def _collect_slots(files: dict, base: str) -> List[str]:
+    out = []
+    for key in file_slots(base):
+        val = files.get(key)
+        if val:
+            out.append(val)
+    return out[:MAX_FILES_PER_FIELD]
+
+
+def _has_any_slot(files: dict, base: str) -> bool:
+    return bool(_collect_slots(files, base))
 
 
 def _project_text(payload: dict) -> str:
@@ -280,13 +293,30 @@ def mirror_shared_fields(products: list, payload: dict, files: dict) -> tuple[di
     files = dict(files or {})
     products = products or []
 
-    logo = files.get("common__logo") or files.get("smartgrid__logo") or files.get("marketpulse__logo")
-    if logo:
-        files["common__logo"] = logo
+    tagline = (
+        str(payload.get("common__tagline") or "").strip()
+        or str(payload.get("smartgrid__tagline") or "").strip()
+    )
+    if tagline:
+        payload["common__tagline"] = tagline
         if "smart-grid" in products:
-            files["smartgrid__logo"] = logo
+            payload["smartgrid__tagline"] = tagline
+
+    logo_slots = []
+    for key in [*file_slots("common__logo"), *file_slots("smartgrid__logo"), *file_slots("marketpulse__logo")]:
+        val = files.get(key)
+        if val and val not in logo_slots:
+            logo_slots.append(val)
+    logo_slots = logo_slots[:MAX_FILES_PER_FIELD]
+    for idx, stored in enumerate(logo_slots):
+        common_key = "common__logo" if idx == 0 else f"common__logo_{idx + 1}"
+        files[common_key] = stored
+        if "smart-grid" in products:
+            sg_key = "smartgrid__logo" if idx == 0 else f"smartgrid__logo_{idx + 1}"
+            files[sg_key] = stored
         if "market-pulse" in products:
-            files["marketpulse__logo"] = logo
+            mp_key = "marketpulse__logo" if idx == 0 else f"marketpulse__logo_{idx + 1}"
+            files[mp_key] = stored
 
     projects = _project_text(payload)
     if projects:
@@ -368,9 +398,9 @@ def compute_pending(
     payload, files = mirror_shared_fields(products, payload, files)
 
     if "avatar-studio" in products:
-        if not files.get("avatar__video"):
+        if not _has_any_slot(files, "avatar__video"):
             pending.append("Avatar video")
-        if not files.get("avatar__voice_sample"):
+        if not _has_any_slot(files, "avatar__voice_sample"):
             pending.append("Voice sample")
 
     if "market-pulse" in products:
@@ -418,17 +448,23 @@ def form_context(
     client_name = (invite.get("label") or "").strip()
     show_logo = "smart-grid" in products or "market-pulse" in products
     show_projects = "lead-flow-call" in products or "call-pilot" in products
+    show_brand = True
     project_uploads = []
     for i in range(1, MAX_PROJECT_FILES + 1):
         key = f"common__projects_file_{i}"
         if uploaded.get(key):
             project_uploads.append({"field": key, "name": uploaded[key]})
-    logo_name = (
-        uploaded.get("common__logo")
-        or uploaded.get("smartgrid__logo")
-        or uploaded.get("marketpulse__logo")
-        or ""
-    )
+
+    def slot_uploads(base: str) -> List[dict]:
+        rows = []
+        for key in file_slots(base):
+            if uploaded.get(key):
+                rows.append({"field": key, "name": uploaded[key]})
+        return rows
+
+    logo_uploads = slot_uploads("common__logo")
+    if not logo_uploads:
+        logo_uploads = slot_uploads("smartgrid__logo") or slot_uploads("marketpulse__logo")
     return {
         "request": request,
         "token": token,
@@ -450,8 +486,13 @@ def form_context(
         "contact_url": CONTACT_URL,
         "show_shared_logo": show_logo,
         "show_shared_projects": show_projects,
-        "shared_logo_name": logo_name,
+        "show_brand_assets": show_brand,
+        "logo_uploads": logo_uploads,
+        "avatar_video_uploads": slot_uploads("avatar__video"),
+        "avatar_voice_uploads": slot_uploads("avatar__voice_sample"),
+        "leads_uploads": slot_uploads("marketpulse__leads"),
         "project_uploads": project_uploads,
+        "max_files_per_field": MAX_FILES_PER_FIELD,
         "max_project_files": MAX_PROJECT_FILES,
         "invite_status": invite.get("status") or "pending",
     }
