@@ -403,8 +403,12 @@ def compute_pending(
             pending.append("Avatar video")
         if not _has_any_slot(files, "avatar__voice_sample"):
             pending.append("Voice sample")
-        if not str(payload.get("avatar__clothing_style") or "").strip():
+        clothing = str(payload.get("avatar__clothing_style") or "").strip()
+        clothing_custom = str(payload.get("avatar__clothing_custom") or "").strip()
+        if not clothing:
             pending.append("Avatar clothing style")
+        elif clothing == "other" and not clothing_custom:
+            pending.append("Custom clothing style")
 
     if "smart-grid" in products:
         if not str(payload.get("smartgrid__sources") or "").strip():
@@ -413,7 +417,11 @@ def compute_pending(
     if "smart-grid" in products or "market-pulse" in products:
         if not _has_any_slot(files, "common__logo") and not _has_any_slot(files, "smartgrid__logo") and not _has_any_slot(files, "marketpulse__logo"):
             pending.append("Business logo")
-    if not str(payload.get("common__brand_color") or "").strip():
+    primary_color = (
+        str(payload.get("common__brand_color") or "").strip()
+        or str(payload.get("common__brand_color_1") or "").strip()
+    )
+    if not primary_color:
         pending.append("Brand color")
     if not str(payload.get("common__website") or "").strip():
         pending.append("Website")

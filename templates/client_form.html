@@ -153,13 +153,29 @@
             <label class="text-sm font-semibold text-aa-navy">Brand tagline</label>
             <input name="common__tagline" value="{{ payload.get('common__tagline', payload.get('smartgrid__tagline', '')) }}" data-autosave class="field-input mt-1" placeholder="Short line under your brand name" />
           </div>
-          <div>
-            <label class="text-sm font-semibold text-aa-navy">Brand color <span class="req">*</span></label>
-            {% set brand_color = payload.get('common__brand_color') or '' %}
-            <div class="mt-1 flex gap-2 items-center">
-              <input type="color" id="brandColorPicker" value="{{ brand_color or '#1FB8B0' }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
-              <input name="common__brand_color" id="brandColorText" value="{{ brand_color }}" data-autosave class="field-input placeholder:text-slate-400" placeholder="#1FB8B0" />
+          <div class="md:col-span-2">
+            <label class="text-sm font-semibold text-aa-navy">Brand colors <span class="req">*</span></label>
+            <p class="text-xs text-aa-muted mt-1 mb-2">Add primary first. You can include up to 3 brand colors.</p>
+            {% set c1 = payload.get('common__brand_color') or payload.get('common__brand_color_1') or '' %}
+            {% set c2 = payload.get('common__brand_color_2') or '' %}
+            {% set c3 = payload.get('common__brand_color_3') or '' %}
+            <div id="brandColorRows" class="space-y-2">
+              <div class="flex gap-2 items-center" data-brand-row="1">
+                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c1 or '#1FB8B0' }}" data-index="1" />
+                <input name="common__brand_color" class="brand-color-text field-input placeholder:text-slate-400" value="{{ c1 }}" data-autosave data-index="1" placeholder="#1FB8B0 (primary)" />
+              </div>
+              <div class="flex gap-2 items-center {% if not c2 and not c3 %}hidden{% endif %}" data-brand-row="2">
+                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c2 or '#0B1F3A' }}" data-index="2" />
+                <input name="common__brand_color_2" class="brand-color-text field-input placeholder:text-slate-400" value="{{ c2 }}" data-autosave data-index="2" placeholder="#0B1F3A (optional)" />
+              </div>
+              <div class="flex gap-2 items-center {% if not c3 %}hidden{% endif %}" data-brand-row="3">
+                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c3 or '#5B6B7C' }}" data-index="3" />
+                <input name="common__brand_color_3" class="brand-color-text field-input placeholder:text-slate-400" value="{{ c3 }}" data-autosave data-index="3" placeholder="#5B6B7C (optional)" />
+              </div>
             </div>
+            <button type="button" id="addBrandColorBtn" class="mt-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy {% if c2 and c3 %}hidden{% endif %}">
+              + Add another brand color
+            </button>
           </div>
           <div>
             <label class="text-sm font-semibold text-aa-navy">Website <span class="req">*</span></label>
@@ -217,11 +233,23 @@
           </div>
           <div class="md:col-span-2">
             <label class="text-sm font-semibold text-aa-navy">Clothing style <span class="req">*</span></label>
-            <input type="hidden" name="avatar__clothing_style" id="clothingStyle" value="{{ payload.get('avatar__clothing_style', '') }}" data-autosave />
+            {% set clothing_val = payload.get('avatar__clothing_style', '') %}
+            <input type="hidden" name="avatar__clothing_style" id="clothingStyle" value="{{ clothing_val }}" data-autosave />
             <div class="choice-row" id="clothingChoices" role="group" aria-label="Clothing style">
-              <button type="button" class="choice-pill {% if payload.get('avatar__clothing_style') == 'formal' %}is-active{% endif %}" data-clothing="formal">Formal</button>
-              <button type="button" class="choice-pill {% if payload.get('avatar__clothing_style') == 'semi-formal' %}is-active{% endif %}" data-clothing="semi-formal">Semi-formal</button>
-              <button type="button" class="choice-pill {% if payload.get('avatar__clothing_style') == 'casual' %}is-active{% endif %}" data-clothing="casual">Casual</button>
+              <button type="button" class="choice-pill {% if clothing_val == 'formal' %}is-active{% endif %}" data-clothing="formal">Formal</button>
+              <button type="button" class="choice-pill {% if clothing_val == 'semi-formal' %}is-active{% endif %}" data-clothing="semi-formal">Semi-formal</button>
+              <button type="button" class="choice-pill {% if clothing_val == 'casual' %}is-active{% endif %}" data-clothing="casual">Casual</button>
+              <button type="button" class="choice-pill {% if clothing_val == 'other' %}is-active{% endif %}" data-clothing="other">Other</button>
+            </div>
+            <div id="clothingCustomWrap" class="mt-3 {% if clothing_val != 'other' %}hidden{% endif %}">
+              <input
+                name="avatar__clothing_custom"
+                id="clothingCustom"
+                value="{{ payload.get('avatar__clothing_custom', '') }}"
+                data-autosave
+                class="field-input"
+                placeholder="Describe the clothing style"
+              />
             </div>
           </div>
         </div>
@@ -511,28 +539,59 @@
   }
   syncPhone();
 
-  const brandPicker = document.getElementById("brandColorPicker");
-  const brandText = document.getElementById("brandColorText");
-  if (brandPicker && brandText) {
-    brandPicker.addEventListener("input", () => {
-      brandText.value = brandPicker.value.toUpperCase();
+  document.querySelectorAll(".brand-color-picker").forEach((picker) => {
+    picker.addEventListener("input", () => {
+      const idx = picker.getAttribute("data-index");
+      const text = document.querySelector('.brand-color-text[data-index="' + idx + '"]');
+      if (text) text.value = picker.value.toUpperCase();
       scheduleAutosave();
     });
-    brandText.addEventListener("input", () => {
-      const hex = brandText.value.trim().toUpperCase();
-      if (/^#[0-9A-F]{6}$/.test(hex)) brandPicker.value = hex;
+  });
+  document.querySelectorAll(".brand-color-text").forEach((text) => {
+    text.addEventListener("input", () => {
+      const idx = text.getAttribute("data-index");
+      const picker = document.querySelector('.brand-color-picker[data-index="' + idx + '"]');
+      const hex = text.value.trim().toUpperCase();
+      if (picker && /^#[0-9A-F]{6}$/.test(hex)) picker.value = hex;
       scheduleAutosave();
+    });
+  });
+  const addBrandColorBtn = document.getElementById("addBrandColorBtn");
+  if (addBrandColorBtn) {
+    addBrandColorBtn.addEventListener("click", () => {
+      const row2 = document.querySelector('[data-brand-row="2"]');
+      const row3 = document.querySelector('[data-brand-row="3"]');
+      if (row2 && row2.classList.contains("hidden")) {
+        row2.classList.remove("hidden");
+      } else if (row3 && row3.classList.contains("hidden")) {
+        row3.classList.remove("hidden");
+        addBrandColorBtn.classList.add("hidden");
+      }
+      if (row2 && row3 && !row2.classList.contains("hidden") && !row3.classList.contains("hidden")) {
+        addBrandColorBtn.classList.add("hidden");
+      }
     });
   }
 
   const clothingStyle = document.getElementById("clothingStyle");
   const clothingChoices = document.getElementById("clothingChoices");
+  const clothingCustomWrap = document.getElementById("clothingCustomWrap");
+  const clothingCustom = document.getElementById("clothingCustom");
   if (clothingChoices && clothingStyle) {
     clothingChoices.querySelectorAll("[data-clothing]").forEach((btn) => {
       btn.addEventListener("click", () => {
         clothingChoices.querySelectorAll("[data-clothing]").forEach((b) => b.classList.remove("is-active"));
         btn.classList.add("is-active");
-        clothingStyle.value = btn.getAttribute("data-clothing") || "";
+        const value = btn.getAttribute("data-clothing") || "";
+        clothingStyle.value = value;
+        if (clothingCustomWrap) {
+          if (value === "other") {
+            clothingCustomWrap.classList.remove("hidden");
+            if (clothingCustom) clothingCustom.focus();
+          } else {
+            clothingCustomWrap.classList.add("hidden");
+          }
+        }
         scheduleAutosave();
       });
     });
