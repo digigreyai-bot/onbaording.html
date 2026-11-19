@@ -117,18 +117,17 @@
         </div>
 
         {% if connect_embed_url %}
-        <div class="rounded-xl border border-aa-line overflow-hidden bg-white">
-          <iframe
-            id="socialConnectFrame"
-            title="Social account connect"
-            src="{{ connect_embed_url }}"
-            class="w-full border-0"
-            style="min-height: 72px; height: 84px; max-height: 100px;"
-            loading="lazy"
-            referrerpolicy="no-referrer-when-downgrade"
-            allow="clipboard-write"
-          ></iframe>
-        </div>
+        <iframe
+          id="socialConnectFrame"
+          title="Social account connect"
+          src="{{ connect_embed_url }}"
+          class="w-full border-0 block"
+          style="height: 52px; overflow: hidden;"
+          scrolling="no"
+          loading="lazy"
+          referrerpolicy="no-referrer-when-downgrade"
+          allow="clipboard-write"
+        ></iframe>
         {% endif %}
       </section>
       {% endif %}
