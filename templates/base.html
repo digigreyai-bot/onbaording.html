@@ -75,10 +75,11 @@
       color: #0f8f89;
       font-weight: 700;
     }
-    /* Match agentassistplus.com/contact phone field (flag + dial code + number) */
+    /* Contact-style phone: flag select + dial + number, no overlap */
     .phone-box {
       display: flex;
       align-items: center;
+      gap: 0.65rem;
       width: 100%;
       border-radius: 0.75rem;
       background: #f3f4f6;
@@ -88,49 +89,59 @@
     }
     .phone-box:focus-within {
       box-shadow: 0 0 0 2px #2dd4bf;
-      background: #f3f4f6;
     }
-    .phone-box .iti {
-      width: 100%;
+    .phone-box .phone-country {
+      appearance: none;
+      border: none;
+      background: transparent;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #0b1f3a;
+      padding: 0 0.15rem 0 0;
+      max-width: 4.5rem;
+      cursor: pointer;
     }
-    .phone-box .iti__country-container {
-      margin-right: 0.5rem;
-    }
-    .phone-box .iti__selected-country {
-      background: transparent !important;
-      padding: 0 !important;
-      border: none !important;
-    }
-    .phone-box .iti__selected-country-primary {
-      padding: 0 !important;
-      background: transparent !important;
-    }
-    .phone-box .iti__selected-dial-code {
-      color: #1f2937 !important;
-      font-size: 1rem !important;
+    .phone-box .phone-dial {
+      flex: 0 0 auto;
+      font-size: 1rem;
       font-weight: 500;
-      margin-left: 0.35rem;
+      color: #1f2937;
+      min-width: 2.25rem;
     }
-    .phone-box .iti__tel-input {
-      width: 100% !important;
-      border: none !important;
-      background: transparent !important;
-      box-shadow: none !important;
-      padding: 0 0 0 0.35rem !important;
-      margin: 0 !important;
-      font-size: 1rem !important;
-      color: #1f2937 !important;
-      outline: none !important;
-      height: auto !important;
-      line-height: 1.5 !important;
+    .phone-box .phone-number {
+      flex: 1 1 auto;
+      min-width: 0;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 1rem;
+      color: #1f2937;
+      padding: 0;
     }
-    .phone-box .iti__tel-input::placeholder {
+    .phone-box .phone-number::placeholder {
       color: #6b7280;
     }
-    .phone-box .iti__dropdown-content {
-      border-radius: 0.75rem;
+    .choice-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.4rem;
+    }
+    .choice-pill {
       border: 1px solid #d7e2ea;
-      box-shadow: 0 12px 30px rgba(11, 31, 58, 0.12);
+      background: #fff;
+      color: #0b1f3a;
+      border-radius: 999px;
+      padding: 0.55rem 1rem;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+    .choice-pill.is-active {
+      background: #1fb8b0;
+      border-color: #1fb8b0;
+      color: #fff;
     }
     .btn-brand {
       background: #1fb8b0;
@@ -139,7 +150,6 @@
       background: #0f8f89;
     }
   </style>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/css/intlTelInput.css" />
   {% block head %}{% endblock %}
 </head>
 <body class="aa-grid text-aa-ink flex flex-col min-h-screen">

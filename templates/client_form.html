@@ -2,28 +2,26 @@
 {% block title %}Client Onboarding · AgentAssist+{% endblock %}
 {% block body %}
 <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
-  <header class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-    <div class="min-w-0">
-      <div class="flex flex-wrap items-center gap-3 md:gap-4">
-        <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-11 md:h-12 w-auto" width="160" height="48" />
-        <h1 class="text-2xl md:text-3xl font-extrabold text-aa-navy tracking-tight">Client Onboarding</h1>
+  <header class="mb-6 md:mb-8">
+    <div class="flex items-start justify-between gap-4">
+      <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-11 md:h-12 w-auto shrink-0" width="160" height="48" />
+      <div class="flex flex-col items-end gap-2 text-right">
+        <h1 class="text-lg md:text-xl font-extrabold tracking-wide text-aa-teal uppercase">Client Onboarding</h1>
+        <div id="saveStatus" class="save-pill text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-aa-line text-aa-muted">
+          Waiting for changes
+        </div>
+        <a href="{{ contact_url }}" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy">
+          Need help? Contact us
+        </a>
       </div>
-      <p class="text-xl md:text-2xl font-bold text-aa-navy mt-4">
-        {% if client_name %}Welcome, {{ client_name }}{% else %}Welcome{% endif %}
-      </p>
-      <p class="text-aa-muted mt-2 max-w-2xl">
-        Complete your AgentAssist+ setup below. Progress saves automatically as you fill each field. Submit when everything required is ready.
-      </p>
     </div>
-    <div class="flex flex-col items-start md:items-end gap-2">
-      <div id="saveStatus" class="save-pill text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-aa-line text-aa-muted">
-        Waiting for changes
-      </div>
-      <a href="{{ contact_url }}" target="_blank" rel="noopener noreferrer"
-         class="inline-flex items-center gap-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy">
-        Need help? Contact us
-      </a>
-    </div>
+    <p class="text-xl md:text-2xl font-bold text-aa-navy mt-5">
+      {% if client_name %}Welcome, {{ client_name }}{% else %}Welcome{% endif %}
+    </p>
+    <p class="text-aa-muted mt-2 max-w-2xl">
+      Complete your AgentAssist+ setup below. Progress saves automatically as you fill each field. Submit when everything required is ready.
+    </p>
   </header>
 
   <div class="bg-white/90 backdrop-blur rounded-2xl shadow-panel border border-aa-line p-5 md:p-8">
@@ -48,10 +46,40 @@
           <div>
             <label class="text-sm font-semibold text-aa-navy">Phone number <span class="req">*</span></label>
             <div class="phone-box mt-1">
-              <input id="phoneVisible" type="tel" value="{{ phone_national or phone }}" class="w-full" autocomplete="tel" placeholder="Enter phone number" />
+              <select id="phoneCountry" class="phone-country" aria-label="Country code">
+                {% set dials = [
+                  ('+1', '🇨🇦 +1'),
+                  ('+44', '🇬🇧 +44'),
+                  ('+971', '🇦🇪 +971'),
+                  ('+966', '🇸🇦 +966'),
+                  ('+61', '🇦🇺 +61'),
+                  ('+64', '🇳🇿 +64'),
+                  ('+91', '🇮🇳 +91'),
+                  ('+92', '🇵🇰 +92'),
+                  ('+49', '🇩🇪 +49'),
+                  ('+33', '🇫🇷 +33'),
+                  ('+34', '🇪🇸 +34'),
+                  ('+39', '🇮🇹 +39'),
+                  ('+31', '🇳🇱 +31'),
+                  ('+65', '🇸🇬 +65'),
+                  ('+852', '🇭🇰 +852'),
+                  ('+81', '🇯🇵 +81'),
+                  ('+82', '🇰🇷 +82'),
+                  ('+55', '🇧🇷 +55'),
+                  ('+52', '🇲🇽 +52'),
+                  ('+27', '🇿🇦 +27'),
+                  ('+234', '🇳🇬 +234'),
+                  ('+254', '🇰🇪 +254')
+                ] %}
+                {% for code, label in dials %}
+                <option value="{{ code }}" {% if phone_dial == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+              <span class="phone-dial" id="phoneDialDisplay">{{ phone_dial or '+1' }}</span>
+              <input id="phoneVisible" type="tel" value="{{ phone_national }}" class="phone-number" autocomplete="tel-national" inputmode="tel" placeholder="Enter phone number" />
             </div>
             <input type="hidden" name="common__phone" id="phoneFull" value="{{ phone }}" data-autosave />
-            <input type="hidden" name="common__phone_dial" id="phoneDial" value="{{ phone_dial }}" data-autosave />
+            <input type="hidden" name="common__phone_dial" id="phoneDial" value="{{ phone_dial or '+1' }}" data-autosave />
             <input type="hidden" name="common__phone_national" id="phoneNational" value="{{ phone_national }}" data-autosave />
           </div>
           <div>
@@ -119,10 +147,10 @@
           </div>
           <div>
             <label class="text-sm font-semibold text-aa-navy">Brand color <span class="req">*</span></label>
-            {% set brand_color = payload.get('common__brand_color') or '#1FB8B0' %}
+            {% set brand_color = payload.get('common__brand_color') or '' %}
             <div class="mt-1 flex gap-2 items-center">
-              <input type="color" id="brandColorPicker" value="{{ brand_color }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
-              <input name="common__brand_color" id="brandColorText" value="{{ brand_color }}" data-autosave class="field-input" placeholder="#1FB8B0" />
+              <input type="color" id="brandColorPicker" value="{{ brand_color or '#1FB8B0' }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
+              <input name="common__brand_color" id="brandColorText" value="{{ brand_color }}" data-autosave class="field-input placeholder:text-slate-400" placeholder="#1FB8B0" />
             </div>
           </div>
           <div>
@@ -140,15 +168,7 @@
       {% if show_shared_projects %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-1">Units</h2>
-        <p class="text-sm text-aa-muted mb-4">
-          {%- if "call-pilot" in products and "lead-flow-call" in products -%}
-          Call Pilot / LeadFlow
-          {%- elif "call-pilot" in products -%}
-          Call Pilot
-          {%- else -%}
-          LeadFlow
-          {%- endif -%}
-        </p>
+        <p class="text-sm text-aa-muted mb-4">Call Pilot / LeadFlow</p>
         <label class="text-sm font-semibold text-aa-navy">Current units <span class="req">*</span></label>
         <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste unit bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
         <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload unit files</label>
@@ -187,23 +207,14 @@
             <input type="file" data-upload-group="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="field-input" multiple />
             <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
           </div>
-          <div>
+          <div class="md:col-span-2">
             <label class="text-sm font-semibold text-aa-navy">Clothing style <span class="req">*</span></label>
-            <select name="avatar__clothing_style" data-autosave class="field-input mt-1">
-              <option value="" {% if not payload.get('avatar__clothing_style') %}selected{% endif %}>Select style</option>
-              <option value="formal" {% if payload.get('avatar__clothing_style') == 'formal' %}selected{% endif %}>Formal</option>
-              <option value="semi-formal" {% if payload.get('avatar__clothing_style') == 'semi-formal' %}selected{% endif %}>Semi-formal</option>
-              <option value="casual" {% if payload.get('avatar__clothing_style') == 'casual' %}selected{% endif %}>Casual</option>
-            </select>
-          </div>
-          <div>
-            <label class="text-sm font-semibold text-aa-navy">Preferred setting</label>
-            <select name="avatar__preferred_setting" data-autosave class="field-input mt-1">
-              <option value="" {% if not payload.get('avatar__preferred_setting') %}selected{% endif %}>Select setting</option>
-              <option value="office" {% if payload.get('avatar__preferred_setting') == 'office' %}selected{% endif %}>Office / indoor</option>
-              <option value="studio" {% if payload.get('avatar__preferred_setting') == 'studio' %}selected{% endif %}>Neutral studio</option>
-              <option value="outdoor" {% if payload.get('avatar__preferred_setting') == 'outdoor' %}selected{% endif %}>Outdoor</option>
-            </select>
+            <input type="hidden" name="avatar__clothing_style" id="clothingStyle" value="{{ payload.get('avatar__clothing_style', '') }}" data-autosave />
+            <div class="choice-row" id="clothingChoices" role="group" aria-label="Clothing style">
+              <button type="button" class="choice-pill {% if payload.get('avatar__clothing_style') == 'formal' %}is-active{% endif %}" data-clothing="formal">Formal</button>
+              <button type="button" class="choice-pill {% if payload.get('avatar__clothing_style') == 'semi-formal' %}is-active{% endif %}" data-clothing="semi-formal">Semi-formal</button>
+              <button type="button" class="choice-pill {% if payload.get('avatar__clothing_style') == 'casual' %}is-active{% endif %}" data-clothing="casual">Casual</button>
+            </div>
           </div>
         </div>
       </section>
@@ -272,7 +283,6 @@
     </form>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/intlTelInput.min.js"></script>
 <script>
   (function () {
     const frame = document.getElementById("socialConnectFrame");
@@ -459,66 +469,55 @@
     return { storedName, displayName };
   }
 
-  // Phone input (same pattern as agentassistplus.com/contact)
+  // Custom phone field: country select + dial code + national number
+  const phoneCountry = document.getElementById("phoneCountry");
   const phoneVisible = document.getElementById("phoneVisible");
   const phoneFull = document.getElementById("phoneFull");
   const phoneDial = document.getElementById("phoneDial");
   const phoneNational = document.getElementById("phoneNational");
-  let iti = null;
-  if (phoneVisible && window.intlTelInput) {
-    iti = window.intlTelInput(phoneVisible, {
-      initialCountry: "ca",
-      separateDialCode: true,
-      nationalMode: true,
-      formatAsYouType: true,
-      autoPlaceholder: "aggressive",
-      countrySearch: true,
-      strictMode: false,
-      utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/utils.js",
-    });
-    // Prefill national number only (dial code is shown beside the flag).
-    if (phoneNational && phoneNational.value) {
-      phoneVisible.value = phoneNational.value;
-    } else if (phoneFull && phoneFull.value) {
-      try { iti.setNumber(phoneFull.value); } catch (_) {}
-    }
-    const syncPhone = () => {
-      if (!iti) return;
-      const data = iti.getSelectedCountryData() || {};
-      const dial = data.dialCode ? ("+" + data.dialCode) : "";
-      const national = (phoneVisible.value || "").trim();
-      let full = "";
-      try { full = iti.getNumber() || ""; } catch (_) { full = ""; }
-      if (!full && dial && national) full = dial + " " + national;
-      if (phoneDial) phoneDial.value = dial;
-      if (phoneNational) phoneNational.value = national;
-      if (phoneFull) phoneFull.value = full;
-    };
-    phoneVisible.addEventListener("input", () => { syncPhone(); scheduleAutosave(); });
-    phoneVisible.addEventListener("countrychange", () => { syncPhone(); scheduleAutosave(); });
-    phoneVisible.addEventListener("blur", () => { syncPhone(); runAutosave(); });
-    syncPhone();
+  const phoneDialDisplay = document.getElementById("phoneDialDisplay");
+
+  function syncPhone() {
+    const dial = (phoneCountry && phoneCountry.value) || "+1";
+    const national = (phoneVisible && phoneVisible.value || "").trim();
+    if (phoneDialDisplay) phoneDialDisplay.textContent = dial;
+    if (phoneDial) phoneDial.value = dial;
+    if (phoneNational) phoneNational.value = national;
+    if (phoneFull) phoneFull.value = national ? (dial + " " + national) : "";
   }
+  if (phoneCountry) {
+    phoneCountry.addEventListener("change", () => { syncPhone(); scheduleAutosave(); });
+  }
+  if (phoneVisible) {
+    phoneVisible.addEventListener("input", () => { syncPhone(); scheduleAutosave(); });
+    phoneVisible.addEventListener("blur", () => { syncPhone(); runAutosave(); });
+  }
+  syncPhone();
 
   const brandPicker = document.getElementById("brandColorPicker");
   const brandText = document.getElementById("brandColorText");
   if (brandPicker && brandText) {
-    const syncBrandColor = (fromPicker) => {
-      let hex = (fromPicker ? brandPicker.value : brandText.value || "").trim().toUpperCase();
-      if (!hex) hex = "#1FB8B0";
-      if (hex[0] !== "#") hex = "#" + hex;
-      if (!/^#[0-9A-F]{6}$/.test(hex)) return;
-      brandPicker.value = hex;
-      brandText.value = hex;
-    };
-    syncBrandColor(false);
     brandPicker.addEventListener("input", () => {
-      syncBrandColor(true);
+      brandText.value = brandPicker.value.toUpperCase();
       scheduleAutosave();
     });
     brandText.addEventListener("input", () => {
-      syncBrandColor(false);
+      const hex = brandText.value.trim().toUpperCase();
+      if (/^#[0-9A-F]{6}$/.test(hex)) brandPicker.value = hex;
       scheduleAutosave();
+    });
+  }
+
+  const clothingStyle = document.getElementById("clothingStyle");
+  const clothingChoices = document.getElementById("clothingChoices");
+  if (clothingChoices && clothingStyle) {
+    clothingChoices.querySelectorAll("[data-clothing]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        clothingChoices.querySelectorAll("[data-clothing]").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        clothingStyle.value = btn.getAttribute("data-clothing") || "";
+        scheduleAutosave();
+      });
     });
   }
 
@@ -609,15 +608,7 @@
 
     formEl.addEventListener("submit", async (ev) => {
       ev.preventDefault();
-      if (iti) {
-        const data = iti.getSelectedCountryData() || {};
-        const dial = data.dialCode ? ("+" + data.dialCode) : "";
-        const national = phoneVisible.value || "";
-        const full = iti.getNumber() || (dial && national ? dial + " " + national : national);
-        if (phoneDial) phoneDial.value = dial;
-        if (phoneNational) phoneNational.value = national;
-        if (phoneFull) phoneFull.value = full;
-      }
+      syncPhone();
       clearTimeout(autosaveTimer);
       await runAutosave();
       if (submitBtn) {
