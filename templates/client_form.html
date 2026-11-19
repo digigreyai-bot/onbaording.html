@@ -156,21 +156,23 @@
           <div class="md:col-span-2">
             <label class="text-sm font-semibold text-aa-navy">Brand colors <span class="req">*</span></label>
             <p class="text-xs text-aa-muted mt-1 mb-2">Add primary first. You can include up to 3 brand colors.</p>
-            {% set c1 = payload.get('common__brand_color') or payload.get('common__brand_color_1') or '' %}
+            {% set c1_raw = (payload.get('common__brand_color') or payload.get('common__brand_color_1') or '')|trim %}
+            {# Old autosave wrote the swatch preview hex as a real value; treat that as unset. #}
+            {% set c1 = '' if c1_raw|upper == '#1FB8B0' and not (payload.get('common__brand_color_2') or '')|trim else c1_raw %}
             {% set c2 = payload.get('common__brand_color_2') or '' %}
             {% set c3 = payload.get('common__brand_color_3') or '' %}
             <div id="brandColorRows" class="space-y-2">
               <div class="flex gap-2 items-center" data-brand-row="1">
-                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c1 or '#1FB8B0' }}" data-index="1" />
-                <input name="common__brand_color" class="brand-color-text field-input placeholder:text-slate-400" value="{{ c1 }}" data-autosave data-index="1" placeholder="#1FB8B0 (primary)" />
+                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c1 or '#FFFFFF' }}" data-index="1" title="Pick primary brand color" />
+                <input name="common__brand_color" class="brand-color-text field-input" value="{{ c1 }}" data-autosave data-index="1" placeholder="#1FB8B0 (primary)" style="color: inherit;" />
               </div>
               <div class="flex gap-2 items-center {% if not c2 and not c3 %}hidden{% endif %}" data-brand-row="2">
-                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c2 or '#0B1F3A' }}" data-index="2" />
-                <input name="common__brand_color_2" class="brand-color-text field-input placeholder:text-slate-400" value="{{ c2 }}" data-autosave data-index="2" placeholder="#0B1F3A (optional)" />
+                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c2 or '#FFFFFF' }}" data-index="2" />
+                <input name="common__brand_color_2" class="brand-color-text field-input" value="{{ c2 }}" data-autosave data-index="2" placeholder="#0B1F3A (optional)" />
               </div>
               <div class="flex gap-2 items-center {% if not c3 %}hidden{% endif %}" data-brand-row="3">
-                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c3 or '#5B6B7C' }}" data-index="3" />
-                <input name="common__brand_color_3" class="brand-color-text field-input placeholder:text-slate-400" value="{{ c3 }}" data-autosave data-index="3" placeholder="#5B6B7C (optional)" />
+                <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c3 or '#FFFFFF' }}" data-index="3" />
+                <input name="common__brand_color_3" class="brand-color-text field-input" value="{{ c3 }}" data-autosave data-index="3" placeholder="#5B6B7C (optional)" />
               </div>
             </div>
             <button type="button" id="addBrandColorBtn" class="mt-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy {% if c2 and c3 %}hidden{% endif %}">
@@ -540,7 +542,7 @@
   syncPhone();
 
   document.querySelectorAll(".brand-color-picker").forEach((picker) => {
-    picker.addEventListener("input", () => {
+    picker.addEventListener("change", () => {
       const idx = picker.getAttribute("data-index");
       const text = document.querySelector('.brand-color-text[data-index="' + idx + '"]');
       if (text) text.value = picker.value.toUpperCase();
