@@ -169,12 +169,12 @@
               <div class="flex gap-2 items-center {% if not c2 and not c3 %}hidden{% endif %}" data-brand-row="2">
                 <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c2 or '#FFFFFF' }}" data-index="2" />
                 <input name="common__brand_color_2" class="brand-color-text field-input" value="{{ c2 }}" data-autosave data-index="2" placeholder="#0B1F3A (optional)" />
-                <button type="button" class="brand-color-remove shrink-0 px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-muted hover:text-red-700 hover:border-red-200" data-remove-brand="2" aria-label="Remove color">Remove</button>
+                <button type="button" class="brand-color-remove shrink-0 px-3 py-2 rounded-lg border border-aa-teal text-xs font-semibold text-aa-teal hover:bg-aa-teal hover:text-white" data-remove-brand="2" aria-label="Remove color">Remove</button>
               </div>
               <div class="flex gap-2 items-center {% if not c3 %}hidden{% endif %}" data-brand-row="3">
                 <input type="color" class="brand-color-picker h-11 w-14 rounded-lg border border-aa-line bg-white p-1" value="{{ c3 or '#FFFFFF' }}" data-index="3" />
                 <input name="common__brand_color_3" class="brand-color-text field-input" value="{{ c3 }}" data-autosave data-index="3" placeholder="#5B6B7C (optional)" />
-                <button type="button" class="brand-color-remove shrink-0 px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-muted hover:text-red-700 hover:border-red-200" data-remove-brand="3" aria-label="Remove color">Remove</button>
+                <button type="button" class="brand-color-remove shrink-0 px-3 py-2 rounded-lg border border-aa-teal text-xs font-semibold text-aa-teal hover:bg-aa-teal hover:text-white" data-remove-brand="3" aria-label="Remove color">Remove</button>
               </div>
             </div>
             <button type="button" id="addBrandColorBtn" class="mt-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy {% if c2 and c3 %}hidden{% endif %}">
