@@ -1,4 +1,4 @@
-"""Digigrey Client Onboarding — admin dashboard + client forms."""
+"""AgentAssist+ client onboarding: admin dashboard + client forms."""
 from __future__ import annotations
 
 import json
@@ -8,7 +8,7 @@ import shutil
 import urllib.error
 import urllib.request
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 from dotenv import load_dotenv
@@ -24,9 +24,13 @@ import db
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
-# Starlette defaults max_part_size to 1MB — that silently kills Mac/phone videos.
+# Starlette defaults max_part_size to 1MB; that silently kills Mac/phone videos.
 MAX_PART_SIZE = int(os.getenv("MAX_UPLOAD_PART_BYTES", str(512 * 1024 * 1024)))
 ONBOARDING_HTML_API_KEY = (os.getenv("ONBOARDING_HTML_API_KEY") or "").strip()
+CONTACT_URL = (
+    os.getenv("CONTACT_URL") or "https://agentassistplus.com/contact"
+).strip()
+MAX_PROJECT_FILES = 3
 PRODUCT_OPTIONS = [
     ("avatar-studio", "Avatar Studio"),
     ("lead-flow-call", "LeadFlow"),
@@ -38,20 +42,25 @@ PRODUCT_LABELS = dict(PRODUCT_OPTIONS)
 FILE_FIELDS = {
     "avatar__video",
     "avatar__voice_sample",
+    "common__logo",
     "smartgrid__logo",
     "leadflow__projects_file",
     "callpilot__projects_file",
     "marketpulse__logo",
     "marketpulse__leads",
+    *(f"common__projects_file_{i}" for i in range(1, MAX_PROJECT_FILES + 1)),
+    *(f"leadflow__projects_file_{i}" for i in range(2, MAX_PROJECT_FILES + 1)),
+    *(f"callpilot__projects_file_{i}" for i in range(2, MAX_PROJECT_FILES + 1)),
 }
 TEXT_PREFIXES = (
+    "common__",
     "smartgrid__",
     "leadflow__",
     "callpilot__",
     "marketpulse__",
 )
 
-app = FastAPI(title="Digigrey Onboarding")
+app = FastAPI(title="AgentAssist+ Onboarding")
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 static_dir = BASE_DIR / "static"
 static_dir.mkdir(exist_ok=True)
@@ -108,7 +117,7 @@ def create_invite_from_payload(
     if "avatar-studio" in products and not avatar:
         return None, "Avatar Studio connect link is required when Avatar Studio is selected."
     if "smart-grid" in products and not smart:
-        # One Connect Hub link is enough — reuse avatar connect URL when smart-grid needs it.
+        # One Connect Hub link is enough; reuse avatar connect URL when smart-grid needs it.
         smart = avatar
     if "smart-grid" not in products:
         smart = ""
@@ -130,7 +139,7 @@ def admin_redirect_login() -> RedirectResponse:
 
 
 def notify_contabo_submitted(invite: dict, form_url: str) -> None:
-    """Tell Contabo the Digigrey form is done so the portal unlocks the dashboard."""
+    """Tell Contabo the onboarding form is done so the portal unlocks the dashboard."""
     base = (
         os.getenv("CONTABO_API_URL")
         or os.getenv("AGENTASSIST_API_URL")
@@ -142,7 +151,7 @@ def notify_contabo_submitted(invite: dict, form_url: str) -> None:
         return
     payload = json.dumps(
         {
-            # formUrl is the unique matcher — inviteId alone can collide across Contabo users.
+            # formUrl is the unique matcher; inviteId alone can collide across Contabo users.
             "formUrl": form_url,
             "inviteId": invite.get("id"),
             "label": invite.get("label"),
@@ -236,6 +245,103 @@ def display_filename(stored: str) -> str:
     return name
 
 
+def _has_logo(files: dict) -> bool:
+    return bool(
+        files.get("common__logo")
+        or files.get("smartgrid__logo")
+        or files.get("marketpulse__logo")
+    )
+
+
+def _project_text(payload: dict) -> str:
+    return (
+        str(payload.get("common__projects") or "").strip()
+        or str(payload.get("leadflow__projects") or "").strip()
+        or str(payload.get("callpilot__projects") or "").strip()
+    )
+
+
+def _has_project_file(files: dict) -> bool:
+    if files.get("leadflow__projects_file") or files.get("callpilot__projects_file"):
+        return True
+    if files.get("common__projects_file_1"):
+        return True
+    for i in range(1, MAX_PROJECT_FILES + 1):
+        if files.get(f"leadflow__projects_file_{i}") or files.get(f"callpilot__projects_file_{i}"):
+            return True
+        if files.get(f"common__projects_file_{i}"):
+            return True
+    return False
+
+
+def mirror_shared_fields(products: list, payload: dict, files: dict) -> tuple[dict, dict]:
+    """Keep product-specific keys Contabo/admin already know, from shared UI fields."""
+    payload = dict(payload or {})
+    files = dict(files or {})
+    products = products or []
+
+    logo = files.get("common__logo") or files.get("smartgrid__logo") or files.get("marketpulse__logo")
+    if logo:
+        files["common__logo"] = logo
+        if "smart-grid" in products:
+            files["smartgrid__logo"] = logo
+        if "market-pulse" in products:
+            files["marketpulse__logo"] = logo
+
+    projects = _project_text(payload)
+    if projects:
+        payload["common__projects"] = projects
+        if "lead-flow-call" in products:
+            payload["leadflow__projects"] = projects
+        if "call-pilot" in products:
+            payload["callpilot__projects"] = projects
+
+    project_slots = []
+    for i in range(1, MAX_PROJECT_FILES + 1):
+        key = f"common__projects_file_{i}"
+        legacy = "leadflow__projects_file" if i == 1 else f"leadflow__projects_file_{i}"
+        legacy_cp = "callpilot__projects_file" if i == 1 else f"callpilot__projects_file_{i}"
+        stored = files.get(key) or files.get(legacy) or files.get(legacy_cp)
+        if stored:
+            project_slots.append(stored)
+    for idx, stored in enumerate(project_slots[:MAX_PROJECT_FILES], start=1):
+        files[f"common__projects_file_{idx}"] = stored
+        if "lead-flow-call" in products:
+            dest = "leadflow__projects_file" if idx == 1 else f"leadflow__projects_file_{idx}"
+            files[dest] = stored
+        if "call-pilot" in products:
+            dest = "callpilot__projects_file" if idx == 1 else f"callpilot__projects_file_{idx}"
+            files[dest] = stored
+
+    return payload, files
+
+
+def split_phone(phone: str, payload: Optional[dict] = None) -> tuple[str, str]:
+    """Return (dial_code, national_number) for UI prefill."""
+    payload = payload or {}
+    dial = str(payload.get("common__phone_dial") or "").strip()
+    national = str(payload.get("common__phone_national") or "").strip()
+    if dial or national:
+        return dial or "+1", national
+    raw = (phone or "").strip()
+    if not raw:
+        return "+1", ""
+    m = re.match(r"^\+(\d{1,4})\s*(.*)$", raw)
+    if m:
+        return f"+{m.group(1)}", m.group(2).strip()
+    return "+1", raw
+
+
+def compose_phone(dial: str, national: str) -> str:
+    dial = (dial or "").strip() or "+1"
+    national = (national or "").strip()
+    if not national:
+        return ""
+    if not dial.startswith("+"):
+        dial = f"+{dial}"
+    return f"{dial} {national}".strip()
+
+
 def compute_pending(
     products: list,
     company: str,
@@ -259,6 +365,7 @@ def compute_pending(
 
     payload = payload or {}
     files = files or {}
+    payload, files = mirror_shared_fields(products, payload, files)
 
     if "avatar-studio" in products:
         if not files.get("avatar__video"):
@@ -272,22 +379,15 @@ def compute_pending(
         if not str(payload.get("marketpulse__app_password") or "").strip():
             pending.append("Market Pulse app password")
 
-    if "smart-grid" in products:
-        if not files.get("smartgrid__logo") and not str(payload.get("smartgrid__tagline") or "").strip():
-            # soft: logo OR tagline/sources optional — only flag empty sources+logo as mild?
-            pass  # Smart Grid has no hard required beyond basics
-
-    if "lead-flow-call" in products:
-        has_projects = bool(str(payload.get("leadflow__projects") or "").strip())
-        has_file = bool(files.get("leadflow__projects_file"))
-        if not has_projects and not has_file:
-            pending.append("LeadFlow projects")
-
-    if "call-pilot" in products:
-        has_projects = bool(str(payload.get("callpilot__projects") or "").strip())
-        has_file = bool(files.get("callpilot__projects_file"))
-        if not has_projects and not has_file:
-            pending.append("Call Pilot projects")
+    needs_projects = "lead-flow-call" in products or "call-pilot" in products
+    if needs_projects:
+        if not _project_text(payload) and not _has_project_file(files):
+            if "lead-flow-call" in products and "call-pilot" in products:
+                pending.append("Current projects")
+            elif "lead-flow-call" in products:
+                pending.append("LeadFlow projects")
+            else:
+                pending.append("Call Pilot projects")
 
     if extra_notes:
         for note in extra_notes:
@@ -307,11 +407,28 @@ def form_context(
 ) -> dict:
     products = invite.get("products") or []
     submission = submission or db.get_submission_by_invite(invite["id"])
-    files = (submission or {}).get("files") or {}
-    payload = (submission or {}).get("payload") or {}
+    files = dict((submission or {}).get("files") or {})
+    payload = dict((submission or {}).get("payload") or {})
+    payload, files = mirror_shared_fields(products, payload, files)
     if pending is None:
         pending = list((submission or {}).get("pending") or [])
     uploaded = {k: display_filename(v) for k, v in files.items() if v}
+    phone_raw = (submission or {}).get("phone") or ""
+    dial, national = split_phone(phone_raw, payload)
+    client_name = (invite.get("label") or "").strip()
+    show_logo = "smart-grid" in products or "market-pulse" in products
+    show_projects = "lead-flow-call" in products or "call-pilot" in products
+    project_uploads = []
+    for i in range(1, MAX_PROJECT_FILES + 1):
+        key = f"common__projects_file_{i}"
+        if uploaded.get(key):
+            project_uploads.append({"field": key, "name": uploaded[key]})
+    logo_name = (
+        uploaded.get("common__logo")
+        or uploaded.get("smartgrid__logo")
+        or uploaded.get("marketpulse__logo")
+        or ""
+    )
     return {
         "request": request,
         "token": token,
@@ -324,9 +441,19 @@ def form_context(
         "payload": payload,
         "uploaded_files": uploaded,
         "company": (submission or {}).get("company") or "",
-        "phone": (submission or {}).get("phone") or "",
+        "phone": phone_raw,
+        "phone_dial": dial,
+        "phone_national": national,
         "city": (submission or {}).get("city") or "",
         "country": (submission or {}).get("country") or "",
+        "client_name": client_name,
+        "contact_url": CONTACT_URL,
+        "show_shared_logo": show_logo,
+        "show_shared_projects": show_projects,
+        "shared_logo_name": logo_name,
+        "project_uploads": project_uploads,
+        "max_project_files": MAX_PROJECT_FILES,
+        "invite_status": invite.get("status") or "pending",
     }
 
 
@@ -712,7 +839,9 @@ async def client_upload_chunk(request: Request, token: str):
         city = (prior.get("city") or "").strip()
         country = (prior.get("country") or "").strip()
         payload = dict(prior.get("payload") or {})
-        merged_files = {**(prior.get("files") or {}), field: stored}
+        file_patch = {field: stored}
+        payload, file_patch = mirror_shared_fields(products, payload, file_patch)
+        merged_files = {**(prior.get("files") or {}), **file_patch}
         pending = compute_pending(
             products, company, phone, city, country, payload, merged_files
         )
@@ -723,8 +852,9 @@ async def client_upload_chunk(request: Request, token: str):
             city,
             country,
             payload,
-            {field: stored},
+            file_patch,
             pending=pending,
+            finalize=False,
         )
 
         return JSONResponse(
@@ -758,6 +888,152 @@ async def parse_client_form(request: Request):
         return await request.form()
 
 
+def extract_text_fields(
+    source: Any,
+    *,
+    prior_payload: dict,
+    prior_company: str = "",
+    prior_phone: str = "",
+    prior_city: str = "",
+    prior_country: str = "",
+) -> tuple[str, str, str, str, dict]:
+    """Pull company/phone/city/country + payload text from form mapping or JSON dict."""
+    def get(key: str, default: str = "") -> str:
+        if hasattr(source, "get"):
+            val = source.get(key)
+        else:
+            return default
+        if isinstance(val, UploadFile):
+            return default
+        if val is None:
+            return default
+        return str(val)
+
+    company = get("common__company", "").strip() or prior_company
+    city = get("common__city", "").strip() or prior_city
+    country = get("common__country", "").strip() or prior_country
+
+    dial = get("common__phone_dial", "").strip()
+    national = get("common__phone_national", "").strip()
+    phone_full = get("common__phone", "").strip()
+    if dial or national:
+        phone = compose_phone(dial, national) or prior_phone
+    else:
+        phone = phone_full or prior_phone
+
+    payload = dict(prior_payload or {})
+    if dial:
+        payload["common__phone_dial"] = dial
+    if national or dial:
+        payload["common__phone_national"] = national
+
+    keys = []
+    if hasattr(source, "keys"):
+        keys = list(source.keys())
+    elif isinstance(source, dict):
+        keys = list(source.keys())
+
+    for key in keys:
+        if key in FILE_FIELDS or key.startswith("preuploaded__"):
+            continue
+        if key.startswith("common__") and key in {
+            "common__company",
+            "common__phone",
+            "common__phone_dial",
+            "common__phone_national",
+            "common__city",
+            "common__country",
+        }:
+            continue
+        if not any(key.startswith(p) for p in TEXT_PREFIXES):
+            continue
+        new_val = get(key, "")
+        if key == "marketpulse__app_password" and not new_val.strip():
+            continue
+        payload[key] = new_val
+
+    return company, phone, city, country, payload
+
+
+@app.post("/o/{token}/autosave")
+async def client_form_autosave(request: Request, token: str):
+    """Debounced draft save for text fields. Never finalizes / notifies Contabo."""
+    invite = db.get_invite_by_token(token)
+    if not invite:
+        return JSONResponse({"ok": False, "error": "Invalid link"}, status_code=404)
+    if invite["status"] == "submitted":
+        return JSONResponse({"ok": False, "error": "Already submitted"}, status_code=400)
+
+    products = invite.get("products") or []
+    prior = db.get_submission_by_invite(invite["id"]) or {}
+    prior_payload = dict(prior.get("payload") or {})
+    prior_files = dict(prior.get("files") or {})
+
+    try:
+        incoming = await request.json()
+    except Exception:
+        incoming = {}
+    if not isinstance(incoming, dict):
+        incoming = {}
+
+    merged_source = {
+        "common__company": prior.get("company") or "",
+        "common__phone": prior.get("phone") or "",
+        "common__city": prior.get("city") or "",
+        "common__country": prior.get("country") or "",
+        **prior_payload,
+    }
+    for key, val in incoming.items():
+        if key.startswith("preuploaded__"):
+            continue
+        merged_source[key] = "" if val is None else val
+
+    company, phone, city, country, payload = extract_text_fields(
+        merged_source,
+        prior_payload=prior_payload,
+        prior_company=(prior.get("company") or ""),
+        prior_phone=(prior.get("phone") or ""),
+        prior_city=(prior.get("city") or ""),
+        prior_country=(prior.get("country") or ""),
+    )
+    if "common__company" in incoming:
+        company = str(incoming.get("common__company") or "").strip()
+    if "common__city" in incoming:
+        city = str(incoming.get("common__city") or "").strip()
+    if "common__country" in incoming:
+        country = str(incoming.get("common__country") or "").strip()
+    if "common__phone_dial" in incoming or "common__phone_national" in incoming:
+        dial = str(incoming.get("common__phone_dial") or payload.get("common__phone_dial") or "")
+        national = str(
+            incoming.get("common__phone_national")
+            if "common__phone_national" in incoming
+            else payload.get("common__phone_national") or ""
+        )
+        phone = compose_phone(dial, national)
+        payload["common__phone_dial"] = dial.strip()
+        payload["common__phone_national"] = national.strip()
+
+    payload, files = mirror_shared_fields(products, payload, prior_files)
+    pending = compute_pending(products, company, phone, city, country, payload, files)
+    db.save_submission(
+        invite["id"],
+        company,
+        phone,
+        city,
+        country,
+        payload,
+        {},
+        pending=pending,
+        finalize=False,
+    )
+    return {
+        "ok": True,
+        "pending": pending,
+        "complete": not pending,
+        "savedAt": db.utc_now(),
+    }
+
+
 @app.post("/o/{token}", response_class=HTMLResponse)
 async def client_form_post(request: Request, token: str):
     invite = db.get_invite_by_token(token)
@@ -775,7 +1051,6 @@ async def client_form_post(request: Request, token: str):
     try:
         form = await parse_client_form(request)
     except Exception:
-        # Re-load DB — chunked files may already be registered.
         prior = db.get_submission_by_invite(invite["id"]) or prior
         return templates.TemplateResponse(
             "client_form.html",
@@ -783,17 +1058,21 @@ async def client_form_post(request: Request, token: str):
                 request,
                 token,
                 invite,
-                error="Could not save form fields. Files already uploaded are kept — fill text fields and tap Save again.",
+                error="Could not save form fields. Files already uploaded are kept. Fill text fields and try Submit again.",
                 pending=list((prior or {}).get("pending") or []),
                 submission=prior or None,
             ),
             status_code=400,
         )
 
-    company = str(form.get("common__company") or "").strip()
-    phone = str(form.get("common__phone") or "").strip()
-    city = str(form.get("common__city") or "").strip()
-    country = str(form.get("common__country") or "").strip()
+    company, phone, city, country, payload = extract_text_fields(
+        form,
+        prior_payload=prior_payload,
+        prior_company=(prior.get("company") or ""),
+        prior_phone=(prior.get("phone") or ""),
+        prior_city=(prior.get("city") or ""),
+        prior_country=(prior.get("country") or ""),
+    )
 
     def render_form(msg: str, pending: Optional[List[str]] = None, status: int = 400):
         return templates.TemplateResponse(
@@ -810,35 +1089,16 @@ async def client_form_post(request: Request, token: str):
                     "phone": phone or (prior or {}).get("phone") or "",
                     "city": city or (prior or {}).get("city") or "",
                     "country": country or (prior or {}).get("country") or "",
-                    "payload": prior_payload,
+                    "payload": payload,
                     "files": prior_files,
                 },
             ),
             status_code=status,
         )
 
-    # Soft-require at least company OR phone so empty spam is avoided.
-    if not company and not phone:
-        return render_form("Please enter at least a company name or phone number before saving.")
-
-    payload = dict(prior_payload)
-    for key in form.keys():
-        if key in FILE_FIELDS or key.startswith("common__") or key.startswith("preuploaded__"):
-            continue
-        if any(key.startswith(p) for p in TEXT_PREFIXES):
-            val = form.get(key)
-            if isinstance(val, UploadFile):
-                continue
-            # Keep previous secret if user left password blank on resume
-            new_val = str(val or "")
-            if key == "marketpulse__app_password" and not new_val.strip():
-                continue
-            payload[key] = new_val
-
     upload_root = db.upload_dir_for_invite(invite["id"])
     saved_files: dict = {}
 
-    # Files already uploaded via chunked API (large Mac/phone videos).
     for field in FILE_FIELDS:
         pre = str(form.get(f"preuploaded__{field}") or "").strip()
         if not pre:
@@ -864,13 +1124,15 @@ async def client_form_post(request: Request, token: str):
             saved_files[field] = fname
         except Exception:
             if field == "avatar__video":
-                extra_notes.append("Avatar video (upload failed — try again)")
+                extra_notes.append("Avatar video (upload failed; try again)")
             elif field == "avatar__voice_sample":
-                extra_notes.append("Voice sample (upload failed — try again)")
+                extra_notes.append("Voice sample (upload failed; try again)")
             else:
                 extra_notes.append(f"{field} (upload failed)")
 
+    payload, saved_files = mirror_shared_fields(products, payload, saved_files)
     merged_files = {**prior_files, **saved_files}
+    payload, merged_files = mirror_shared_fields(products, payload, merged_files)
     pending = compute_pending(
         products, company, phone, city, country, payload, merged_files, extra_notes
     )
@@ -884,6 +1146,7 @@ async def client_form_post(request: Request, token: str):
         payload,
         saved_files,
         pending=pending,
+        finalize=True,
     )
 
     form_url = client_form_url(request, token)
@@ -898,5 +1161,7 @@ async def client_form_post(request: Request, token: str):
             "is_partial": bool(pending),
             "token": token,
             "form_url": form_url,
+            "client_name": (invite.get("label") or "").strip(),
+            "contact_url": CONTACT_URL,
         },
     )

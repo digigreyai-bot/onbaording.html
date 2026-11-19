@@ -235,11 +235,20 @@ def save_submission(
     payload: Dict[str, Any],
     files: Dict[str, str],
     pending: Optional[List[str]] = None,
+    *,
+    finalize: bool = False,
 ) -> Dict[str, Any]:
-    """Upsert submission; merge files (keep previous when field not re-uploaded)."""
+    """Upsert submission; merge files (keep previous when field not re-uploaded).
+
+    finalize=False keeps the invite as draft/partial so autosave never unlocks Contabo.
+    finalize=True marks submitted only when pending is empty.
+    """
     now = utc_now()
     pending_list = list(pending or [])
-    status = "submitted" if not pending_list else "partial"
+    if finalize and not pending_list:
+        status = "submitted"
+    else:
+        status = "partial"
     with connect() as conn:
         existing = conn.execute(
             "SELECT id, payload_json, files_json FROM submissions WHERE invite_id = ?",

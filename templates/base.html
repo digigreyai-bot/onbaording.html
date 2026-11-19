@@ -3,11 +3,78 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{% block title %}Digigrey Onboarding{% endblock %}</title>
+  <title>{% block title %}AgentAssist+ Onboarding{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>body { font-family: "Segoe UI", system-ui, sans-serif; }</style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            aa: {
+              navy: "#0B1F3A",
+              ink: "#14233D",
+              teal: "#1FB8B0",
+              tealDeep: "#0F8F89",
+              mist: "#F3F7FA",
+              line: "#D7E2EA",
+              muted: "#5B6B7C",
+            },
+          },
+          fontFamily: {
+            sans: ["Figtree", "Segoe UI", "sans-serif"],
+          },
+          boxShadow: {
+            panel: "0 18px 50px rgba(11, 31, 58, 0.08)",
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: Figtree, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(31, 184, 176, 0.12), transparent 55%),
+        radial-gradient(900px 420px at 100% 0%, rgba(11, 31, 58, 0.08), transparent 50%),
+        linear-gradient(180deg, #f7fafc 0%, #eef3f7 100%);
+      min-height: 100vh;
+    }
+    .aa-grid {
+      background-image:
+        linear-gradient(rgba(11, 31, 58, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(11, 31, 58, 0.035) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+    .field-input {
+      width: 100%;
+      border: 1px solid #d7e2ea;
+      border-radius: 0.75rem;
+      padding: 0.7rem 0.9rem;
+      background: #fff;
+      color: #0b1f3a;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .field-input:focus {
+      outline: none;
+      border-color: #1fb8b0;
+      box-shadow: 0 0 0 3px rgba(31, 184, 176, 0.18);
+    }
+    .section-card {
+      border: 1px solid #d7e2ea;
+      border-radius: 1rem;
+      background: #fff;
+      padding: 1.25rem;
+    }
+    .save-pill {
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+  </style>
+  {% block head %}{% endblock %}
 </head>
-<body class="bg-slate-100 min-h-screen">
+<body class="aa-grid text-aa-ink">
   {% block body %}{% endblock %}
 </body>
 </html>

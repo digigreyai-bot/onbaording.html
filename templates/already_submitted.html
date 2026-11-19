@@ -1,8 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Already submitted — Digigrey{% endblock %}
+{% block title %}Already submitted · AgentAssist+{% endblock %}
 {% block body %}
-<div class="max-w-lg mx-auto mt-16 bg-white rounded-2xl shadow-xl p-8 text-center">
-  <h1 class="text-2xl font-bold text-slate-800">Already submitted</h1>
-  <p class="text-slate-600 mt-3">This onboarding form has already been submitted. Contact Digigrey if you need changes.</p>
+<div class="max-w-lg mx-auto mt-16 bg-white/95 rounded-2xl shadow-panel border border-aa-line p-8 text-center">
+  <img src="/static/logo.png" alt="AgentAssist+" class="h-12 mx-auto mb-5" />
+  <h1 class="text-2xl font-extrabold text-aa-navy">Already submitted</h1>
+  <p class="text-aa-muted mt-3">
+    This onboarding form has already been submitted. Contact AgentAssist+ if you need changes.
+  </p>
+  <a href="https://agentassistplus.com/contact" target="_blank" rel="noopener noreferrer"
+     class="inline-block mt-6 px-6 py-3 rounded-xl bg-aa-navy text-white font-semibold">Contact us</a>
 </div>
 {% endblock %}
