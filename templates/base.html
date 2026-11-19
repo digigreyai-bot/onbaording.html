@@ -90,17 +90,30 @@
     .phone-box:focus-within {
       box-shadow: 0 0 0 2px #2dd4bf;
     }
+    .phone-box .phone-flag-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+      flex: 0 0 auto;
+      min-width: 2.75rem;
+    }
+    .phone-box .phone-flag {
+      width: 22px;
+      height: 16px;
+      object-fit: cover;
+      border-radius: 2px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
+      pointer-events: none;
+    }
     .phone-box .phone-country {
-      appearance: none;
-      border: none;
-      background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230B1F3A' d='M1 1l5 5 5-5'/%3E%3C/svg%3E") no-repeat right center;
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #0b1f3a;
-      padding: 0 1rem 0 0;
-      min-width: 5.5rem;
-      max-width: 7rem;
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      min-width: 2.75rem;
+      opacity: 0;
       cursor: pointer;
+      border: none;
+      background: transparent;
     }
     .phone-box .phone-dial {
       flex: 0 0 auto;

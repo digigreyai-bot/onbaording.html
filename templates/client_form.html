@@ -3,14 +3,9 @@
 {% block body %}
 <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
   <header class="mb-6 md:mb-8">
-    <div class="flex items-start justify-between gap-4">
+    <div class="flex items-center justify-between gap-4">
       <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-11 md:h-12 w-auto shrink-0" width="160" height="48" />
-      <div class="flex flex-col items-end gap-2 text-right">
-        <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-aa-navy uppercase">Client Onboarding</h1>
-        <div id="saveStatus" class="save-pill text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-aa-line text-aa-muted">
-          Waiting for changes
-        </div>
-      </div>
+      <h1 class="text-2xl md:text-3xl font-extrabold tracking-tight text-aa-navy uppercase text-right">Client Onboarding</h1>
     </div>
     <div class="mt-5 flex flex-col md:flex-row md:items-start md:justify-between gap-3">
       <div class="min-w-0">
@@ -21,10 +16,15 @@
           Complete your AgentAssist+ setup below. Progress saves automatically as you fill each field. Submit when everything required is ready.
         </p>
       </div>
-      <a href="{{ contact_url }}" target="_blank" rel="noopener noreferrer"
-         class="inline-flex items-center gap-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy md:mt-1 shrink-0">
-        Need help? Contact us
-      </a>
+      <div class="flex flex-col items-start md:items-end gap-2 shrink-0 md:mt-1">
+        <div id="saveStatus" class="save-pill text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-aa-line text-aa-muted">
+          Waiting for changes
+        </div>
+        <a href="{{ contact_url }}" target="_blank" rel="noopener noreferrer"
+           class="inline-flex items-center gap-2 text-sm font-semibold text-aa-tealDeep hover:text-aa-navy">
+          Need help? Contact us
+        </a>
+      </div>
     </div>
   </header>
 
@@ -50,35 +50,38 @@
           <div>
             <label class="text-sm font-semibold text-aa-navy">Phone number <span class="req">*</span></label>
             <div class="phone-box mt-1">
-              <select id="phoneCountry" class="phone-country" aria-label="Country code">
-                {% set dials = [
-                  ('+1', '🇨🇦', 'CA/US'),
-                  ('+44', '🇬🇧', 'UK'),
-                  ('+971', '🇦🇪', 'UAE'),
-                  ('+966', '🇸🇦', 'KSA'),
-                  ('+61', '🇦🇺', 'AU'),
-                  ('+64', '🇳🇿', 'NZ'),
-                  ('+91', '🇮🇳', 'IN'),
-                  ('+92', '🇵🇰', 'PK'),
-                  ('+49', '🇩🇪', 'DE'),
-                  ('+33', '🇫🇷', 'FR'),
-                  ('+34', '🇪🇸', 'ES'),
-                  ('+39', '🇮🇹', 'IT'),
-                  ('+31', '🇳🇱', 'NL'),
-                  ('+65', '🇸🇬', 'SG'),
-                  ('+852', '🇭🇰', 'HK'),
-                  ('+81', '🇯🇵', 'JP'),
-                  ('+82', '🇰🇷', 'KR'),
-                  ('+55', '🇧🇷', 'BR'),
-                  ('+52', '🇲🇽', 'MX'),
-                  ('+27', '🇿🇦', 'ZA'),
-                  ('+234', '🇳🇬', 'NG'),
-                  ('+254', '🇰🇪', 'KE')
-                ] %}
-                {% for code, flag, short in dials %}
-                <option value="{{ code }}" {% if phone_dial == code %}selected{% endif %}>{{ flag }} {{ short }}</option>
-                {% endfor %}
-              </select>
+              <div class="phone-flag-wrap">
+                <img id="phoneFlag" class="phone-flag" src="https://flagcdn.com/w40/ca.png" width="20" height="15" alt="" />
+                <select id="phoneCountry" class="phone-country" aria-label="Country code">
+                  {% set dials = [
+                    ('+1', 'ca', 'CA/US'),
+                    ('+44', 'gb', 'UK'),
+                    ('+971', 'ae', 'UAE'),
+                    ('+966', 'sa', 'KSA'),
+                    ('+61', 'au', 'AU'),
+                    ('+64', 'nz', 'NZ'),
+                    ('+91', 'in', 'IN'),
+                    ('+92', 'pk', 'PK'),
+                    ('+49', 'de', 'DE'),
+                    ('+33', 'fr', 'FR'),
+                    ('+34', 'es', 'ES'),
+                    ('+39', 'it', 'IT'),
+                    ('+31', 'nl', 'NL'),
+                    ('+65', 'sg', 'SG'),
+                    ('+852', 'hk', 'HK'),
+                    ('+81', 'jp', 'JP'),
+                    ('+82', 'kr', 'KR'),
+                    ('+55', 'br', 'BR'),
+                    ('+52', 'mx', 'MX'),
+                    ('+27', 'za', 'ZA'),
+                    ('+234', 'ng', 'NG'),
+                    ('+254', 'ke', 'KE')
+                  ] %}
+                  {% for code, iso, short in dials %}
+                  <option value="{{ code }}" data-iso="{{ iso }}" {% if phone_dial == code %}selected{% endif %}>{{ short }} {{ code }}</option>
+                  {% endfor %}
+                </select>
+              </div>
               <span class="phone-dial" id="phoneDialDisplay">{{ phone_dial or '+1' }}</span>
               <input id="phoneVisible" type="tel" value="{{ phone_national }}" class="phone-number" autocomplete="tel-national" inputmode="tel" placeholder="Enter phone number" />
             </div>
@@ -481,6 +484,14 @@
   const phoneNational = document.getElementById("phoneNational");
   const phoneDialDisplay = document.getElementById("phoneDialDisplay");
 
+  const phoneFlag = document.getElementById("phoneFlag");
+  function syncPhoneFlag() {
+    if (!phoneCountry || !phoneFlag) return;
+    const opt = phoneCountry.options[phoneCountry.selectedIndex];
+    const iso = (opt && opt.getAttribute("data-iso")) || "ca";
+    phoneFlag.src = "https://flagcdn.com/w40/" + iso + ".png";
+    phoneFlag.alt = iso.toUpperCase();
+  }
   function syncPhone() {
     const dial = (phoneCountry && phoneCountry.value) || "+1";
     const national = (phoneVisible && phoneVisible.value || "").trim();
@@ -488,6 +499,7 @@
     if (phoneDial) phoneDial.value = dial;
     if (phoneNational) phoneNational.value = national;
     if (phoneFull) phoneFull.value = national ? (dial + " " + national) : "";
+    syncPhoneFlag();
   }
   if (phoneCountry) {
     phoneCountry.addEventListener("change", () => { syncPhone(); scheduleAutosave(); });
