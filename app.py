@@ -403,21 +403,24 @@ def compute_pending(
         if not _has_any_slot(files, "avatar__voice_sample"):
             pending.append("Voice sample")
 
+    if "smart-grid" in products or "market-pulse" in products:
+        if not _has_any_slot(files, "common__logo") and not _has_any_slot(files, "smartgrid__logo") and not _has_any_slot(files, "marketpulse__logo"):
+            pending.append("Business logo")
+    if not str(payload.get("common__brand_color") or "").strip():
+        pending.append("Brand color")
+    if not str(payload.get("common__website") or "").strip():
+        pending.append("Website")
+
     if "market-pulse" in products:
         if not str(payload.get("marketpulse__email") or "").strip():
             pending.append("Market Pulse sender email")
         if not str(payload.get("marketpulse__app_password") or "").strip():
             pending.append("Market Pulse app password")
 
-    needs_projects = "lead-flow-call" in products or "call-pilot" in products
-    if needs_projects:
+    needs_units = "lead-flow-call" in products or "call-pilot" in products
+    if needs_units:
         if not _project_text(payload) and not _has_project_file(files):
-            if "lead-flow-call" in products and "call-pilot" in products:
-                pending.append("Current projects")
-            elif "lead-flow-call" in products:
-                pending.append("LeadFlow projects")
-            else:
-                pending.append("Call Pilot projects")
+            pending.append("Current units")
 
     if extra_notes:
         for note in extra_notes:

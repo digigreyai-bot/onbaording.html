@@ -75,33 +75,52 @@
       color: #0f8f89;
       font-weight: 700;
     }
+    /* Match agentassistplus.com/contact phone field */
     .phone-box {
       display: flex;
       align-items: center;
       width: 100%;
       border-radius: 0.75rem;
       background: #f3f4f6;
-      padding: 0.55rem 0.9rem;
-      border: 1px solid transparent;
-      transition: box-shadow 0.15s ease, border-color 0.15s ease;
+      padding: 0.65rem 1rem;
+      border: none;
+      transition: box-shadow 0.15s ease;
     }
     .phone-box:focus-within {
-      border-color: #1fb8b0;
-      box-shadow: 0 0 0 3px rgba(31, 184, 176, 0.18);
-      background: #fff;
+      box-shadow: 0 0 0 2px #2dd4bf;
+      background: #f3f4f6;
     }
     .phone-box .iti {
       width: 100%;
+      display: flex;
+      align-items: center;
+    }
+    .phone-box .iti__flag-container {
+      position: static;
+      margin-right: 0.75rem;
+    }
+    .phone-box .iti__selected-flag {
+      background: transparent !important;
+      padding: 0 0.35rem 0 0 !important;
+      border: none !important;
     }
     .phone-box .iti__tel-input {
-      width: 100%;
+      width: 100% !important;
       border: none !important;
       background: transparent !important;
       box-shadow: none !important;
-      padding-left: 52px !important;
-      font-size: 1rem;
-      color: #0b1f3a;
-      outline: none;
+      padding: 0 !important;
+      margin: 0 !important;
+      font-size: 1rem !important;
+      color: #1f2937 !important;
+      outline: none !important;
+      height: auto !important;
+    }
+    .phone-box .iti__tel-input::placeholder {
+      color: #6b7280;
+    }
+    .phone-box .iti--allow-dropdown .iti__flag-container:hover .iti__selected-flag {
+      background: transparent !important;
     }
     .btn-brand {
       background: #1fb8b0;

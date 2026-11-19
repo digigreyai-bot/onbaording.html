@@ -4,7 +4,7 @@
 <div class="max-w-5xl mx-auto px-4 py-6 md:py-10">
   <header class="mb-6 md:mb-8 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
     <div>
-      <img src="/static/logo.png" alt="AgentAssist+" class="h-12 md:h-14 w-auto" width="180" height="56" />
+      <img src="/static/logo-light-1.png" alt="AgentAssist+" class="h-12 md:h-14 w-auto" width="180" height="56" />
       <p class="mt-3 text-sm font-medium text-aa-tealDeep tracking-wide uppercase">Client onboarding</p>
       <h1 class="text-3xl md:text-4xl font-extrabold text-aa-navy mt-1">
         {% if client_name %}Welcome, {{ client_name }}{% else %}Welcome{% endif %}
@@ -72,16 +72,10 @@
               Connect YouTube, TikTok, Facebook/Instagram, and LinkedIn. Each platform opens a secure popup. Stay on this page while you connect.
             </p>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <a href="{{ connect_primary_url }}" target="_blank" rel="noopener noreferrer"
-               class="inline-flex items-center px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">
-              Open connect page
-            </a>
-            <button type="button" id="reloadSocialFrame"
-                    class="px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white">
-              Refresh status
-            </button>
-          </div>
+          <button type="button" id="reloadSocialFrame"
+                  class="px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white self-start">
+            Refresh status
+          </button>
         </div>
 
         {% if connect_embed_url %}
@@ -98,17 +92,6 @@
           ></iframe>
         </div>
         {% endif %}
-
-        <details class="mt-4 rounded-xl border border-aa-line bg-aa-mist/50 px-4 py-3">
-          <summary class="cursor-pointer text-sm font-semibold text-aa-navy">Facebook Page access tips</summary>
-          <p class="text-xs text-aa-muted mt-2 leading-relaxed">
-            Facebook Page → Settings → Page setup → Page access → search <strong>Omar Assist</strong> → enable Insights / Ads / Content → Give Access → confirm with password.
-            Keep Instagram linked to that same Facebook Page.
-          </p>
-          {% if "avatar-studio" in products %}
-          <p class="text-xs text-aa-muted mt-2">TikTok: after connecting, you can post publicly.</p>
-          {% endif %}
-        </details>
       </section>
       {% endif %}
 
@@ -118,7 +101,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           {% if show_shared_logo %}
           <div class="md:col-span-2">
-            <label class="text-sm font-semibold text-aa-navy">Business logo / visiting card</label>
+            <label class="text-sm font-semibold text-aa-navy">Business logo / visiting card <span class="req">*</span></label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="common__logo">
               {% for item in logo_uploads %}
               <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
@@ -133,14 +116,14 @@
             <input name="common__tagline" value="{{ payload.get('common__tagline', payload.get('smartgrid__tagline', '')) }}" data-autosave class="field-input mt-1" placeholder="Short line under your brand name" />
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Brand color</label>
+            <label class="text-sm font-semibold text-aa-navy">Brand color <span class="req">*</span></label>
             <div class="mt-1 flex gap-2 items-center">
               <input type="color" id="brandColorPicker" value="{{ payload.get('common__brand_color', '#1FB8B0') }}" class="h-11 w-14 rounded-lg border border-aa-line bg-white p-1" />
               <input name="common__brand_color" id="brandColorText" value="{{ payload.get('common__brand_color', '') }}" data-autosave class="field-input" placeholder="#1FB8B0" />
             </div>
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Website</label>
+            <label class="text-sm font-semibold text-aa-navy">Website <span class="req">*</span></label>
             <input name="common__website" type="url" value="{{ payload.get('common__website', '') }}" data-autosave class="field-input mt-1" placeholder="https://" />
           </div>
           <div>
@@ -153,17 +136,27 @@
 
       {% if show_shared_projects %}
       <section class="section-card">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Projects</h2>
-        <label class="text-sm font-semibold text-aa-navy">Current projects <span class="req">*</span></label>
-        <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste project bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
-        <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload project files</label>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-1">Units</h2>
+        <p class="text-sm text-aa-muted mb-4">
+          For
+          {% if "call-pilot" in products and "lead-flow-call" in products %}
+          Call Pilot and LeadFlow
+          {% elif "call-pilot" in products %}
+          Call Pilot
+          {% else %}
+          LeadFlow
+          {% endif %}.
+        </p>
+        <label class="text-sm font-semibold text-aa-navy">Current units <span class="req">*</span></label>
+        <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste unit bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
+        <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload unit files</label>
         <div class="space-y-1 mt-1 mb-2" data-upload-list="common__projects_file">
           {% for item in project_uploads %}
           <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
           {% endfor %}
         </div>
         <input type="file" data-upload-group="common__projects_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" class="field-input" multiple />
-        <p class="text-xs text-aa-muted mt-1">Shared across LeadFlow and Call Pilot when both are included. Max {{ max_files_per_field }} files.</p>
+        <p class="text-xs text-aa-muted mt-1">Max {{ max_files_per_field }} files.</p>
       </section>
       {% endif %}
 
@@ -220,13 +213,6 @@
       </section>
       {% endif %}
 
-      {% if "call-pilot" in products %}
-      <section class="section-card">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-2">Call Pilot</h2>
-        <p class="text-sm text-aa-muted">Project details are collected in the Projects section above.</p>
-      </section>
-      {% endif %}
-
       {% if "market-pulse" in products %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Market Pulse</h2>
@@ -241,10 +227,7 @@
             <p class="text-xs text-emerald-700 mt-1 mb-1">Already saved. Leave blank to keep.</p>
             {% endif %}
             <input type="password" name="marketpulse__app_password" data-autosave autocomplete="new-password" class="field-input mt-1" placeholder="16-character app password" />
-            <p class="text-xs text-aa-muted mt-1">
-              Use an app password, not your normal email password.
-              <a class="text-aa-tealDeep font-semibold underline" href="https://support.google.com/accounts/answer/185833" target="_blank" rel="noopener noreferrer">Gmail help</a>
-            </p>
+            <p class="text-xs text-aa-muted mt-1">Use an app password, not your normal email password.</p>
           </div>
           <div class="md:col-span-2">
             <label class="text-sm font-semibold text-aa-navy">Lead database spreadsheet (CSV/XLSX/XLS)</label>
@@ -260,7 +243,7 @@
       </section>
       {% endif %}
 
-      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 pt-2">
+      <div class="flex flex-col items-center gap-3 pt-2">
         <p id="uploadProgress" class="text-sm text-aa-tealDeep hidden"></p>
         <button id="submitBtn" class="px-8 py-3 rounded-xl btn-brand text-white font-bold shadow-panel transition" type="submit">
           Submit onboarding
@@ -464,24 +447,20 @@
   let iti = null;
   if (phoneVisible && window.intlTelInput) {
     iti = window.intlTelInput(phoneVisible, {
-      initialCountry: "auto",
-      geoIpLookup: (cb) => {
-        fetch("https://ipapi.co/json/")
-          .then((r) => r.json())
-          .then((d) => cb((d && d.country_code) || "ca"))
-          .catch(() => cb("ca"));
-      },
-      separateDialCode: true,
-      nationalMode: true,
+      initialCountry: "ca",
+      separateDialCode: false,
+      nationalMode: false,
+      formatOnDisplay: true,
       autoPlaceholder: "aggressive",
+      countrySearch: true,
       utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@25.3.1/build/js/utils.js",
     });
     const syncPhone = () => {
       if (!iti) return;
       const data = iti.getSelectedCountryData() || {};
       const dial = data.dialCode ? ("+" + data.dialCode) : "";
-      const national = phoneVisible.value || "";
-      const full = iti.getNumber() || (dial && national ? dial + " " + national : national);
+      const national = (phoneVisible.value || "").replace(/^\+\d+\s*/, "").trim();
+      const full = iti.getNumber() || (phoneVisible.value || "").trim();
       if (phoneDial) phoneDial.value = dial;
       if (phoneNational) phoneNational.value = national;
       if (phoneFull) phoneFull.value = full;
