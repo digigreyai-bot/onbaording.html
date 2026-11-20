@@ -272,22 +272,6 @@
       </section>
       {% endif %}
 
-      {% if "lead-flow-call" in products %}
-      <section class="section-card">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">LeadFlow</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <div>
-            <label class="text-sm font-semibold text-aa-navy">CRM name (optional)</label>
-            <input name="leadflow__crm_name" value="{{ payload.get('leadflow__crm_name', '') }}" data-autosave class="field-input mt-1" />
-          </div>
-          <div>
-            <label class="text-sm font-semibold text-aa-navy">CRM API key (optional)</label>
-            <input type="password" name="leadflow__api" value="{{ payload.get('leadflow__api', '') }}" data-autosave class="field-input mt-1" autocomplete="new-password" />
-          </div>
-        </div>
-      </section>
-      {% endif %}
-
       {% if "market-pulse" in products %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Market Pulse</h2>
