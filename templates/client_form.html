@@ -31,10 +31,10 @@
   <div class="bg-white/90 backdrop-blur rounded-2xl shadow-panel border border-aa-line p-5 md:p-8">
     <div class="flex flex-wrap gap-2 mb-6">
       {% if package_label %}
-      <span class="px-4 py-2 rounded-lg bg-aa-navy text-white text-sm font-semibold tracking-wide">{{ package_label }} package</span>
+      <span class="px-4 py-2 rounded-lg btn-brand text-white text-sm font-semibold tracking-wide">{{ package_label }} package</span>
       {% else %}
       {% for key in products %}
-      <span class="px-3 py-1.5 rounded-lg bg-aa-navy text-white text-xs font-semibold tracking-wide">{{ product_labels.get(key, key) }}</span>
+      <span class="px-3 py-1.5 rounded-lg btn-brand text-white text-xs font-semibold tracking-wide">{{ product_labels.get(key, key) }}</span>
       {% endfor %}
       {% endif %}
     </div>
@@ -198,9 +198,8 @@
 
       {% if show_shared_projects %}
       <section class="section-card">
-        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-1">Units</h2>
-        <p class="text-sm text-aa-muted mb-4">Call Pilot / LeadFlow</p>
-        <label class="text-sm font-semibold text-aa-navy">Current units <span class="req">*</span></label>
+        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-1">Units for sale</h2>
+        <label class="text-sm font-semibold text-aa-navy">Current units</label>
         <textarea name="common__projects" rows="4" data-autosave class="field-input mt-1" placeholder="Paste unit bullets or short notes">{{ payload.get('common__projects', payload.get('leadflow__projects', payload.get('callpilot__projects', ''))) }}</textarea>
         <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload unit files</label>
         <div class="space-y-1 mt-1 mb-2" data-upload-list="common__projects_file">
@@ -219,7 +218,7 @@
         <p class="text-sm text-aa-muted mb-4">Flow: news/script → client approve → avatar reel (9:16) → posting.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Avatar video <span class="req">*</span></label>
+            <label class="text-sm font-semibold text-aa-navy">Avatar video</label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__video">
               {% for item in avatar_video_uploads %}
               <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
@@ -227,9 +226,21 @@
             </div>
             <input type="file" data-upload-group="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="field-input" multiple />
             <p class="text-xs text-aa-muted mt-1">Clear face video (MP4/MOV), about 10–30 seconds. Max {{ max_files_per_field }} files.</p>
+            <div class="live-recorder mt-3" data-recorder="video" data-upload-base="avatar__video">
+              <p class="text-xs font-semibold text-aa-navy mb-2">Or record live with your camera</p>
+              <video class="recorder-preview hidden" playsinline muted></video>
+              <video class="recorder-playback hidden" playsinline controls></video>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <button type="button" class="recorder-start px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">Start video recording</button>
+                <button type="button" class="recorder-stop px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop</button>
+                <button type="button" class="recorder-use px-3 py-2 rounded-lg border border-aa-teal text-xs font-semibold text-aa-tealDeep bg-white hidden">Use recording</button>
+                <button type="button" class="recorder-discard px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-muted bg-white hidden">Discard</button>
+              </div>
+              <p class="recorder-status text-xs text-aa-muted mt-2"></p>
+            </div>
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Voice sample <span class="req">*</span></label>
+            <label class="text-sm font-semibold text-aa-navy">Voice sample</label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__voice_sample">
               {% for item in avatar_voice_uploads %}
               <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
@@ -237,26 +248,16 @@
             </div>
             <input type="file" data-upload-group="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="field-input" multiple />
             <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
-          </div>
-          <div class="md:col-span-2">
-            <label class="text-sm font-semibold text-aa-navy">Clothing style <span class="req">*</span></label>
-            {% set clothing_val = payload.get('avatar__clothing_style', '') %}
-            <input type="hidden" name="avatar__clothing_style" id="clothingStyle" value="{{ clothing_val }}" data-autosave />
-            <div class="choice-row" id="clothingChoices" role="group" aria-label="Clothing style">
-              <button type="button" class="choice-pill {% if clothing_val == 'formal' %}is-active{% endif %}" data-clothing="formal">Formal</button>
-              <button type="button" class="choice-pill {% if clothing_val == 'semi-formal' %}is-active{% endif %}" data-clothing="semi-formal">Semi-formal</button>
-              <button type="button" class="choice-pill {% if clothing_val == 'casual' %}is-active{% endif %}" data-clothing="casual">Casual</button>
-              <button type="button" class="choice-pill {% if clothing_val == 'other' %}is-active{% endif %}" data-clothing="other">Other</button>
-            </div>
-            <div id="clothingCustomWrap" class="mt-3 {% if clothing_val != 'other' %}hidden{% endif %}">
-              <input
-                name="avatar__clothing_custom"
-                id="clothingCustom"
-                value="{{ payload.get('avatar__clothing_custom', '') }}"
-                data-autosave
-                class="field-input"
-                placeholder="Describe the clothing style"
-              />
+            <div class="live-recorder mt-3" data-recorder="audio" data-upload-base="avatar__voice_sample">
+              <p class="text-xs font-semibold text-aa-navy mb-2">Or record live with your microphone</p>
+              <audio class="recorder-playback hidden w-full" controls></audio>
+              <div class="flex flex-wrap gap-2 mt-2">
+                <button type="button" class="recorder-start px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">Start voice recording</button>
+                <button type="button" class="recorder-stop px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop</button>
+                <button type="button" class="recorder-use px-3 py-2 rounded-lg border border-aa-teal text-xs font-semibold text-aa-tealDeep bg-white hidden">Use recording</button>
+                <button type="button" class="recorder-discard px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-muted bg-white hidden">Discard</button>
+              </div>
+              <p class="recorder-status text-xs text-aa-muted mt-2"></p>
             </div>
           </div>
         </div>
@@ -266,7 +267,7 @@
       {% if "smart-grid" in products %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Smart Grid</h2>
-        <label class="text-sm font-semibold text-aa-navy">Content sources <span class="req">*</span></label>
+        <label class="text-sm font-semibold text-aa-navy">Content sources</label>
         <textarea name="smartgrid__sources" rows="2" data-autosave class="field-input mt-1">{{ payload.get('smartgrid__sources', '') }}</textarea>
       </section>
       {% endif %}
@@ -303,17 +304,19 @@
             <input type="password" name="marketpulse__app_password" data-autosave autocomplete="new-password" class="field-input mt-1" placeholder="16-character app password" />
             <p class="text-xs text-aa-muted mt-1">Use an app password, not your normal email password.</p>
           </div>
-          <div class="md:col-span-2">
-            <label class="text-sm font-semibold text-aa-navy">Lead database spreadsheet (CSV/XLSX/XLS)</label>
-            <div class="space-y-1 mt-1 mb-2" data-upload-list="marketpulse__leads">
-              {% for item in leads_uploads %}
-              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
-              {% endfor %}
-            </div>
-            <input type="file" data-upload-group="marketpulse__leads" accept=".csv,.xls,.xlsx" class="field-input" multiple />
-            <p class="text-xs text-aa-muted mt-1">Max {{ max_files_per_field }} files.</p>
-          </div>
         </div>
+      </section>
+
+      <section class="section-card">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Lead Database</h2>
+        <label class="text-sm font-semibold text-aa-navy">Lead database spreadsheet (CSV/XLSX/XLS)</label>
+        <div class="space-y-1 mt-1 mb-2" data-upload-list="marketpulse__leads">
+          {% for item in leads_uploads %}
+          <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+          {% endfor %}
+        </div>
+        <input type="file" data-upload-group="marketpulse__leads" accept=".csv,.xls,.xlsx" class="field-input" multiple />
+        <p class="text-xs text-aa-muted mt-1">Max {{ max_files_per_field }} files.</p>
       </section>
       {% endif %}
 
@@ -601,29 +604,185 @@
     });
   });
 
-  const clothingStyle = document.getElementById("clothingStyle");
-  const clothingChoices = document.getElementById("clothingChoices");
-  const clothingCustomWrap = document.getElementById("clothingCustomWrap");
-  const clothingCustom = document.getElementById("clothingCustom");
-  if (clothingChoices && clothingStyle) {
-    clothingChoices.querySelectorAll("[data-clothing]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        clothingChoices.querySelectorAll("[data-clothing]").forEach((b) => b.classList.remove("is-active"));
-        btn.classList.add("is-active");
-        const value = btn.getAttribute("data-clothing") || "";
-        clothingStyle.value = value;
-        if (clothingCustomWrap) {
-          if (value === "other") {
-            clothingCustomWrap.classList.remove("hidden");
-            if (clothingCustom) clothingCustom.focus();
-          } else {
-            clothingCustomWrap.classList.add("hidden");
-          }
+  function pickRecorderMime(kind) {
+    const candidates =
+      kind === "video"
+        ? ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"]
+        : ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+    for (const type of candidates) {
+      if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)) {
+        return type;
+      }
+    }
+    return "";
+  }
+
+  function wireLiveRecorder(root) {
+    const kind = root.getAttribute("data-recorder") === "audio" ? "audio" : "video";
+    const uploadBase = root.getAttribute("data-upload-base");
+    const startBtn = root.querySelector(".recorder-start");
+    const stopBtn = root.querySelector(".recorder-stop");
+    const useBtn = root.querySelector(".recorder-use");
+    const discardBtn = root.querySelector(".recorder-discard");
+    const statusEl = root.querySelector(".recorder-status");
+    const livePreview = root.querySelector(".recorder-preview");
+    const playback = root.querySelector(".recorder-playback");
+    if (!startBtn || !stopBtn || !useBtn || !discardBtn || !uploadBase) return;
+
+    let mediaStream = null;
+    let mediaRecorder = null;
+    let chunks = [];
+    let recordedBlob = null;
+    let recordedUrl = null;
+
+    function setStatus(msg) {
+      if (statusEl) statusEl.textContent = msg || "";
+    }
+
+    function cleanupStream() {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((t) => t.stop());
+        mediaStream = null;
+      }
+      if (livePreview) {
+        livePreview.srcObject = null;
+        livePreview.classList.add("hidden");
+      }
+    }
+
+    function resetPlayback() {
+      if (recordedUrl) {
+        URL.revokeObjectURL(recordedUrl);
+        recordedUrl = null;
+      }
+      recordedBlob = null;
+      chunks = [];
+      if (playback) {
+        playback.removeAttribute("src");
+        playback.load();
+        playback.classList.add("hidden");
+      }
+      useBtn.classList.add("hidden");
+      discardBtn.classList.add("hidden");
+    }
+
+    startBtn.addEventListener("click", async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setStatus("Live recording is not supported in this browser. Please upload a file instead.");
+        return;
+      }
+      resetPlayback();
+      setStatus("Requesting device permission…");
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia(
+          kind === "video" ? { video: true, audio: true } : { audio: true }
+        );
+      } catch (err) {
+        setStatus(
+          (err && err.name === "NotAllowedError"
+            ? "Permission denied. Allow camera/microphone access, then try again."
+            : (err && err.message) || "Could not access camera/microphone.")
+        );
+        return;
+      }
+
+      if (kind === "video" && livePreview) {
+        livePreview.srcObject = mediaStream;
+        livePreview.classList.remove("hidden");
+        livePreview.muted = true;
+        livePreview.play().catch(() => {});
+      }
+
+      chunks = [];
+      const mimeType = pickRecorderMime(kind);
+      try {
+        mediaRecorder = mimeType
+          ? new MediaRecorder(mediaStream, { mimeType })
+          : new MediaRecorder(mediaStream);
+      } catch (err) {
+        cleanupStream();
+        setStatus((err && err.message) || "Could not start recorder.");
+        return;
+      }
+
+      mediaRecorder.ondataavailable = (ev) => {
+        if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      };
+      mediaRecorder.onstop = () => {
+        const type = (mediaRecorder && mediaRecorder.mimeType) || mimeType || (kind === "video" ? "video/webm" : "audio/webm");
+        recordedBlob = new Blob(chunks, { type });
+        recordedUrl = URL.createObjectURL(recordedBlob);
+        if (playback) {
+          playback.src = recordedUrl;
+          playback.classList.remove("hidden");
         }
-        scheduleAutosave();
+        cleanupStream();
+        startBtn.classList.remove("hidden");
+        stopBtn.classList.add("hidden");
+        useBtn.classList.remove("hidden");
+        discardBtn.classList.remove("hidden");
+        setStatus("Recording ready. Preview, then use or discard.");
+      };
+
+      mediaRecorder.start(250);
+      startBtn.classList.add("hidden");
+      stopBtn.classList.remove("hidden");
+      setStatus(kind === "video" ? "Recording video… speak clearly to camera." : "Recording voice…");
+    });
+
+    stopBtn.addEventListener("click", () => {
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      } else {
+        cleanupStream();
+        startBtn.classList.remove("hidden");
+        stopBtn.classList.add("hidden");
+        setStatus("");
+      }
+    });
+
+    discardBtn.addEventListener("click", () => {
+      resetPlayback();
+      setStatus("Recording discarded.");
+    });
+
+    useBtn.addEventListener("click", async () => {
+      if (!recordedBlob) return;
+      const remaining = Math.max(0, MAX_FILES - usedCount(uploadBase));
+      if (!remaining) {
+        alert("You already uploaded " + MAX_FILES + " files for this field.");
+        return;
+      }
+      const slot = nextSlot(uploadBase);
+      if (!slot) return;
+      const ext = (recordedBlob.type || "").includes("mp4") ? "mp4" : "webm";
+      const filename =
+        (kind === "video" ? "avatar-live-video" : "avatar-live-voice") +
+        "-" +
+        Date.now() +
+        "." +
+        ext;
+      const file = new File([recordedBlob], filename, {
+        type: recordedBlob.type || (kind === "video" ? "video/webm" : "audio/webm"),
       });
+      try {
+        setSaveStatus("Uploading recording…", "busy");
+        setStatus("Uploading recording…");
+        const result = await uploadFileChunked(file, slot);
+        markUploaded(uploadBase, slot, result.displayName);
+        setProgress("");
+        setSaveStatus("Recording saved", "ok");
+        setStatus("Recording uploaded.");
+        resetPlayback();
+      } catch (err) {
+        setProgress("");
+        setSaveStatus((err && err.message) || "Upload failed", "err");
+        setStatus((err && err.message) || "Upload failed. Please try again.");
+      }
     });
   }
+
+  document.querySelectorAll(".live-recorder").forEach(wireLiveRecorder);
 
   let autosaveTimer = null;
   let autosaveInFlight = false;

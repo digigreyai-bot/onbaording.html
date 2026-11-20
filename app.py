@@ -422,16 +422,8 @@ def compute_pending(
             pending.append("Avatar video")
         if not _has_any_slot(files, "avatar__voice_sample"):
             pending.append("Voice sample")
-        clothing = str(payload.get("avatar__clothing_style") or "").strip()
-        clothing_custom = str(payload.get("avatar__clothing_custom") or "").strip()
-        if not clothing:
-            pending.append("Avatar clothing style")
-        elif clothing == "other" and not clothing_custom:
-            pending.append("Custom clothing style")
 
-    if "smart-grid" in products:
-        if not str(payload.get("smartgrid__sources") or "").strip():
-            pending.append("Smart Grid content sources")
+    # Smart Grid content sources are optional (no required asterisk on the form).
 
     if "smart-grid" in products or "market-pulse" in products:
         if not _has_any_slot(files, "common__logo") and not _has_any_slot(files, "smartgrid__logo") and not _has_any_slot(files, "marketpulse__logo"):
@@ -454,7 +446,7 @@ def compute_pending(
     needs_units = "lead-flow-call" in products or "call-pilot" in products
     if needs_units:
         if not _project_text(payload) and not _has_project_file(files):
-            pending.append("Current units")
+            pending.append("Units for sale")
 
     if extra_notes:
         for note in extra_notes:
