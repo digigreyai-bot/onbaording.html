@@ -443,10 +443,7 @@ def compute_pending(
         if not str(payload.get("marketpulse__app_password") or "").strip():
             pending.append("Market Pulse app password")
 
-    needs_units = "lead-flow-call" in products or "call-pilot" in products
-    if needs_units:
-        if not _project_text(payload) and not _has_project_file(files):
-            pending.append("Units for sale")
+    # Units for sale is optional (no required asterisk on the form).
 
     if extra_notes:
         for note in extra_notes:
