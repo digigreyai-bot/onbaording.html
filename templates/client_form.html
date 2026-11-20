@@ -186,7 +186,8 @@
           </div>
           <div>
             <label class="text-sm font-semibold text-aa-navy">Website <span class="req">*</span></label>
-            <input name="common__website" type="url" value="{{ payload.get('common__website', '') }}" data-autosave class="field-input mt-1" placeholder="https://" />
+            <input name="common__website" type="text" inputmode="url" autocomplete="url" value="{{ payload.get('common__website', '') }}" data-autosave data-website-field class="field-input mt-1" placeholder="yourwebsite.com or https://…" />
+            <p class="text-xs text-aa-muted mt-1">Domain is enough (we will add https:// if needed).</p>
           </div>
           <div>
             <label class="text-sm font-semibold text-aa-navy">Brand voice / style notes</label>
@@ -218,7 +219,7 @@
         <p class="text-sm text-aa-muted mb-4">Flow: news/script → client approve → avatar reel (9:16) → posting.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Avatar video</label>
+            <label class="text-sm font-semibold text-aa-navy">Avatar video <span class="req">*</span></label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__video">
               {% for item in avatar_video_uploads %}
               <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
@@ -240,7 +241,7 @@
             </div>
           </div>
           <div>
-            <label class="text-sm font-semibold text-aa-navy">Voice sample</label>
+            <label class="text-sm font-semibold text-aa-navy">Voice sample <span class="req">*</span></label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__voice_sample">
               {% for item in avatar_voice_uploads %}
               <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
@@ -250,7 +251,8 @@
             <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
             <div class="live-recorder mt-3" data-recorder="audio" data-upload-base="avatar__voice_sample">
               <p class="text-xs font-semibold text-aa-navy mb-2">Or record live with your microphone</p>
-              <audio class="recorder-playback hidden w-full" controls></audio>
+              {# video tag: Chrome often plays MediaRecorder audio/webm silently in <audio> #}
+              <video class="recorder-playback recorder-playback-audio hidden w-full" playsinline controls></video>
               <div class="flex flex-wrap gap-2 mt-2">
                 <button type="button" class="recorder-start px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">Start voice recording</button>
                 <button type="button" class="recorder-stop px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop</button>
@@ -642,12 +644,36 @@
       recordedBlob = null;
       chunks = [];
       if (playback) {
+        try {
+          playback.pause();
+        } catch (_) {}
         playback.removeAttribute("src");
         playback.load();
         playback.classList.add("hidden");
       }
       useBtn.classList.add("hidden");
       discardBtn.classList.add("hidden");
+    }
+
+    function showPlayback(blob, type) {
+      if (!playback) return;
+      recordedBlob = blob;
+      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+      recordedUrl = URL.createObjectURL(blob);
+      playback.classList.remove("hidden");
+      playback.muted = false;
+      playback.defaultMuted = false;
+      playback.volume = 1;
+      playback.src = recordedUrl;
+      playback.load();
+      const tryPlay = () => {
+        playback.muted = false;
+        playback.volume = 1;
+        const p = playback.play();
+        if (p && p.catch) p.catch(() => {});
+      };
+      playback.addEventListener("loadeddata", tryPlay, { once: true });
+      setTimeout(tryPlay, 200);
     }
 
     startBtn.addEventListener("click", async () => {
@@ -659,7 +685,15 @@
       setStatus("Requesting device permission…");
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia(
-          kind === "video" ? { video: true, audio: true } : { audio: true }
+          kind === "video"
+            ? { video: true, audio: true }
+            : {
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true,
+                },
+              }
         );
       } catch (err) {
         setStatus(
@@ -693,29 +727,42 @@
         if (ev.data && ev.data.size > 0) chunks.push(ev.data);
       };
       mediaRecorder.onstop = () => {
-        const type = (mediaRecorder && mediaRecorder.mimeType) || mimeType || (kind === "video" ? "video/webm" : "audio/webm");
-        recordedBlob = new Blob(chunks, { type });
-        recordedUrl = URL.createObjectURL(recordedBlob);
-        if (playback) {
-          playback.src = recordedUrl;
-          playback.classList.remove("hidden");
+        const type =
+          (mediaRecorder && mediaRecorder.mimeType) ||
+          mimeType ||
+          (kind === "video" ? "video/webm" : "audio/webm");
+        if (!chunks.length) {
+          cleanupStream();
+          startBtn.classList.remove("hidden");
+          stopBtn.classList.add("hidden");
+          setStatus("No audio captured. Check your microphone and try again.");
+          return;
         }
+        const blob = new Blob(chunks, { type: type.split(";")[0] || type });
         cleanupStream();
+        showPlayback(blob, type);
         startBtn.classList.remove("hidden");
         stopBtn.classList.add("hidden");
         useBtn.classList.remove("hidden");
         discardBtn.classList.remove("hidden");
-        setStatus("Recording ready. Preview, then use or discard.");
+        setStatus(
+          kind === "audio"
+            ? "Recording ready. Turn up volume if needed, then use or discard."
+            : "Recording ready. Preview, then use or discard."
+        );
       };
 
       mediaRecorder.start(250);
       startBtn.classList.add("hidden");
       stopBtn.classList.remove("hidden");
-      setStatus(kind === "video" ? "Recording video… speak clearly to camera." : "Recording voice…");
+      setStatus(kind === "video" ? "Recording video… speak clearly to camera." : "Recording voice… speak now.");
     });
 
     stopBtn.addEventListener("click", () => {
       if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        try {
+          mediaRecorder.requestData();
+        } catch (_) {}
         mediaRecorder.stop();
       } else {
         cleanupStream();
@@ -768,6 +815,24 @@
 
   document.querySelectorAll(".live-recorder").forEach(wireLiveRecorder);
 
+  function normalizeWebsiteValue(raw) {
+    const value = String(raw || "").trim();
+    if (!value) return "";
+    if (/^[a-z][a-z0-9+.-]*:/i.test(value)) return value;
+    return "https://" + value;
+  }
+
+  const websiteField = document.querySelector("[data-website-field]");
+  if (websiteField) {
+    websiteField.addEventListener("blur", () => {
+      const next = normalizeWebsiteValue(websiteField.value);
+      if (next && next !== websiteField.value) {
+        websiteField.value = next;
+        scheduleAutosave();
+      }
+    });
+  }
+
   let autosaveTimer = null;
   let autosaveInFlight = false;
 
@@ -775,7 +840,12 @@
     const payload = {};
     formEl.querySelectorAll("[data-autosave]").forEach((el) => {
       if (!el.name) return;
-      payload[el.name] = el.value;
+      let value = el.value;
+      if (el.hasAttribute("data-website-field")) {
+        value = normalizeWebsiteValue(value);
+        if (value !== el.value) el.value = value;
+      }
+      payload[el.name] = value;
     });
     return payload;
   }
@@ -856,6 +926,9 @@
     formEl.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       syncPhone();
+      if (websiteField) {
+        websiteField.value = normalizeWebsiteValue(websiteField.value);
+      }
       clearTimeout(autosaveTimer);
       await runAutosave();
       if (submitBtn) {
