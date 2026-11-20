@@ -324,6 +324,37 @@ def save_submission(
     return get_submission(sid)
 
 
+def set_submission_files(
+    invite_id: int,
+    files: Dict[str, str],
+    pending: Optional[List[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Overwrite submission files_json (used when removing uploads)."""
+    now = utc_now()
+    pending_list = list(pending or [])
+    with connect() as conn:
+        existing = conn.execute(
+            "SELECT id FROM submissions WHERE invite_id = ?",
+            (invite_id,),
+        ).fetchone()
+        if not existing:
+            return None
+        conn.execute(
+            """
+            UPDATE submissions SET
+              files_json = ?, pending_json = ?, updated_at = ?
+            WHERE invite_id = ?
+            """,
+            (json.dumps(files or {}), json.dumps(pending_list), now, invite_id),
+        )
+        # Keep invite as draft/partial while edits are in progress.
+        conn.execute(
+            "UPDATE invites SET status = ?, submitted_at = ? WHERE id = ? AND status != 'submitted'",
+            ("partial", now, invite_id),
+        )
+    return get_submission_by_invite(invite_id)
+
+
 def upload_dir_for_invite(invite_id: int) -> Path:
     path = data_dir() / "uploads" / str(invite_id)
     path.mkdir(parents=True, exist_ok=True)

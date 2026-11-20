@@ -840,6 +840,60 @@ def client_form_get(request: Request, token: str):
     )
 
 
+@app.post("/o/{token}/remove-upload")
+async def client_remove_upload(request: Request, token: str):
+    """Remove one uploaded file slot from a draft/partial invite."""
+    invite, err = resolve_invite_for_upload(token)
+    if err:
+        return err
+
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    field = str((body or {}).get("field") or "").strip()
+    if not field or field not in FILE_FIELDS:
+        return JSONResponse({"ok": False, "error": "Invalid field"}, status_code=400)
+
+    prior = db.get_submission_by_invite(invite["id"]) or {}
+    files = dict(prior.get("files") or {})
+    stored = str(files.get(field) or "").strip()
+    if not stored:
+        return JSONResponse({"ok": False, "error": "File not found"}, status_code=404)
+
+    keys_to_clear = [k for k, v in files.items() if str(v or "").strip() == stored]
+    if field not in keys_to_clear:
+        keys_to_clear.append(field)
+    for key in keys_to_clear:
+        files.pop(key, None)
+
+    upload_root = db.upload_dir_for_invite(invite["id"])
+    disk_name = Path(stored).name
+    disk_path = upload_root / disk_name
+    if disk_path.is_file():
+        try:
+            disk_path.unlink()
+        except OSError:
+            pass
+
+    products = invite.get("products") or []
+    company = (prior.get("company") or "").strip()
+    phone = (prior.get("phone") or "").strip()
+    city = (prior.get("city") or "").strip()
+    country = (prior.get("country") or "").strip()
+    payload = dict(prior.get("payload") or {})
+    pending = compute_pending(products, company, phone, city, country, payload, files)
+    db.set_submission_files(invite["id"], files, pending=pending)
+    return JSONResponse(
+        {
+            "ok": True,
+            "field": field,
+            "cleared": keys_to_clear,
+            "pending": pending,
+        }
+    )
+
+
 @app.post("/o/{token}/upload-chunk")
 async def client_upload_chunk(request: Request, token: str):
     """Accept large Mac/phone videos as raw binary chunks (no multipart)."""

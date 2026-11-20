@@ -145,7 +145,10 @@
             <label class="text-sm font-semibold text-aa-navy">Business logo / visiting card <span class="req">*</span></label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="common__logo">
               {% for item in logo_uploads %}
-              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+              <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
+                <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
+                <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="common__logo">Remove</button>
+              </div>
               {% endfor %}
             </div>
             <input type="file" data-upload-group="common__logo" accept="image/*,.pdf,.png,.jpg,.jpeg,.webp,.svg" class="field-input" multiple />
@@ -204,7 +207,10 @@
         <label class="text-sm font-semibold text-aa-navy mt-3 block">Or upload unit files</label>
         <div class="space-y-1 mt-1 mb-2" data-upload-list="common__projects_file">
           {% for item in project_uploads %}
-          <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+          <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
+            <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
+            <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="common__projects_file">Remove</button>
+          </div>
           {% endfor %}
         </div>
         <input type="file" data-upload-group="common__projects_file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*" class="field-input" multiple />
@@ -221,7 +227,10 @@
             <label class="text-sm font-semibold text-aa-navy">Avatar video <span class="req">*</span></label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__video">
               {% for item in avatar_video_uploads %}
-              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+              <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
+                <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
+                <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="avatar__video">Remove</button>
+              </div>
               {% endfor %}
             </div>
             <input type="file" data-upload-group="avatar__video" accept="video/*,.mp4,.mov,.webm,.mkv" class="field-input" multiple />
@@ -243,7 +252,10 @@
             <label class="text-sm font-semibold text-aa-navy">Voice sample <span class="req">*</span></label>
             <div class="space-y-1 mt-1 mb-2" data-upload-list="avatar__voice_sample">
               {% for item in avatar_voice_uploads %}
-              <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+              <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
+                <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
+                <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="avatar__voice_sample">Remove</button>
+              </div>
               {% endfor %}
             </div>
             <input type="file" data-upload-group="avatar__voice_sample" accept="audio/*,.mp3,.wav,.m4a,.ogg" class="field-input" multiple />
@@ -297,7 +309,10 @@
         <label class="text-sm font-semibold text-aa-navy">Lead database spreadsheet (CSV/XLSX/XLS)</label>
         <div class="space-y-1 mt-1 mb-2" data-upload-list="marketpulse__leads">
           {% for item in leads_uploads %}
-          <p class="text-xs text-emerald-700" data-file-status="{{ item.field }}">Uploaded: {{ item.name }}</p>
+          <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
+            <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
+            <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="marketpulse__leads">Remove</button>
+          </div>
           {% endfor %}
         </div>
         <input type="file" data-upload-group="marketpulse__leads" accept=".csv,.xls,.xlsx" class="field-input" multiple />
@@ -395,15 +410,72 @@
     uploadSlots[base][field] = true;
     const list = document.querySelector('[data-upload-list="' + base + '"]');
     if (!list) return;
-    let el = list.querySelector('[data-file-status="' + field + '"]');
-    if (!el) {
-      el = document.createElement("p");
-      el.className = "text-xs text-emerald-700";
-      el.setAttribute("data-file-status", field);
-      list.appendChild(el);
+    let row = list.querySelector('[data-file-status="' + field + '"]');
+    if (!row) {
+      row = document.createElement("div");
+      row.className = "flex items-center gap-2 text-xs";
+      row.setAttribute("data-file-status", field);
+      const label = document.createElement("span");
+      label.className = "text-emerald-700 upload-label";
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className =
+        "upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700";
+      btn.setAttribute("data-remove-upload", field);
+      btn.setAttribute("data-upload-base", base);
+      btn.textContent = "Remove";
+      row.appendChild(label);
+      row.appendChild(btn);
+      list.appendChild(row);
     }
-    el.textContent = "Uploaded: " + displayName;
+    const labelEl = row.querySelector(".upload-label") || row.querySelector("span");
+    if (labelEl) labelEl.textContent = "Uploaded: " + displayName;
   }
+
+  function clearUploaded(base, field) {
+    if (uploadSlots[base]) delete uploadSlots[base][field];
+    const list = document.querySelector('[data-upload-list="' + base + '"]');
+    if (!list) return;
+    const row = list.querySelector('[data-file-status="' + field + '"]');
+    if (row) row.remove();
+  }
+
+  async function removeUploaded(field, base) {
+    if (!field) return;
+    if (!confirm("Remove this uploaded file?")) return;
+    try {
+      setSaveStatus("Removing file…", "busy");
+      const res = await fetch("/o/" + encodeURIComponent(token) + "/remove-upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field }),
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error((data && data.error) || "Could not remove file");
+      const cleared = Array.isArray(data.cleared) && data.cleared.length ? data.cleared : [field];
+      cleared.forEach((key) => {
+        clearUploaded(base, key);
+        Object.keys(uploadSlots).forEach((slotBase) => {
+          if (uploadSlots[slotBase] && uploadSlots[slotBase][key]) {
+            clearUploaded(slotBase, key);
+          }
+        });
+      });
+      setSaveStatus("File removed", "ok");
+    } catch (err) {
+      setSaveStatus((err && err.message) || "Could not remove file", "err");
+      alert((err && err.message) || "Could not remove file. Please try again.");
+    }
+  }
+
+  document.addEventListener("click", (ev) => {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("[data-remove-upload]") : null;
+    if (!btn) return;
+    ev.preventDefault();
+    removeUploaded(btn.getAttribute("data-remove-upload"), btn.getAttribute("data-upload-base"));
+  });
 
   function newUploadId() {
     return "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
