@@ -13,6 +13,7 @@ from urllib.parse import urljoin
 
 from dotenv import load_dotenv
 from fastapi import Body, FastAPI, Form, Header, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -30,6 +31,20 @@ ONBOARDING_HTML_API_KEY = (os.getenv("ONBOARDING_HTML_API_KEY") or "").strip()
 CONTACT_URL = (
     os.getenv("CONTACT_URL") or "https://agentassistplus.com/contact"
 ).strip()
+# Public Digigrey origin for browser uploads (bypass Contabo nginx 413 on masked URLs).
+DIGIGREY_PUBLIC_ORIGIN = (
+    os.getenv("APP_BASE_URL")
+    or os.getenv("DIGIGREY_PUBLIC_ORIGIN")
+    or "https://onbaordinghtml-production.up.railway.app"
+).rstrip("/")
+MASK_ORIGINS = [
+    o.strip().rstrip("/")
+    for o in (
+        os.getenv("MASK_CORS_ORIGINS")
+        or "https://agentassistplus.com,https://www.agentassistplus.com"
+    ).split(",")
+    if o.strip()
+]
 MAX_FILES_PER_FIELD = 3
 MAX_PROJECT_FILES = MAX_FILES_PER_FIELD
 PRODUCT_OPTIONS = [
@@ -86,6 +101,14 @@ TEXT_PREFIXES = (
 )
 
 app = FastAPI(title="AgentAssist+ Onboarding")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=MASK_ORIGINS or ["https://agentassistplus.com"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 static_dir = BASE_DIR / "static"
 static_dir.mkdir(exist_ok=True)
@@ -476,6 +499,7 @@ def form_context(
     package_label = PACKAGE_LABELS.get(package_slug, "")
     show_logo = "smart-grid" in products or "market-pulse" in products
     show_projects = "lead-flow-call" in products or "call-pilot" in products
+    show_lead_database = show_projects
     show_brand = True
     project_uploads = []
     for i in range(1, MAX_PROJECT_FILES + 1):
@@ -516,7 +540,10 @@ def form_context(
         "contact_url": CONTACT_URL,
         "show_shared_logo": show_logo,
         "show_shared_projects": show_projects,
+        "show_lead_database": show_lead_database,
         "show_brand_assets": show_brand,
+        # Absolute Digigrey origin so large chunk uploads skip the Contabo proxy.
+        "api_origin": DIGIGREY_PUBLIC_ORIGIN,
         "logo_uploads": logo_uploads,
         "avatar_video_uploads": slot_uploads("avatar__video"),
         "avatar_voice_uploads": slot_uploads("avatar__voice_sample"),

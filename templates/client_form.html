@@ -43,7 +43,7 @@
     <p class="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{{ error }}</p>
     {% endif %}
 
-    <form id="onboardingForm" method="post" action="/o/{{ token }}" enctype="multipart/form-data" class="space-y-5">
+    <form id="onboardingForm" method="post" action="{{ api_origin }}/o/{{ token }}" enctype="multipart/form-data" class="space-y-5">
       <section class="section-card bg-aa-mist/40">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">1 · Basic information</h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -303,7 +303,10 @@
           </div>
         </div>
       </section>
+      {% endif %}
 
+      {# Lead lists feed AI calling (LeadFlow / Call Pilot), not Market Pulse email. #}
+      {% if show_lead_database %}
       <section class="section-card">
         <h2 class="text-sm font-bold uppercase tracking-wider text-aa-tealDeep mb-4">Lead Database</h2>
         <label class="text-sm font-semibold text-aa-navy">Lead database spreadsheet (CSV/XLSX/XLS)</label>
@@ -353,6 +356,12 @@
   const submitBtn = document.getElementById("submitBtn");
   const saveStatus = document.getElementById("saveStatus");
   const token = {{ token | tojson }};
+  // Hit Digigrey directly so Contabo nginx does not 413 large video chunks.
+  const apiOrigin = String({{ api_origin | tojson }} || "").replace(/\/+$/, "");
+  function apiUrl(path) {
+    const p = path.startsWith("/") ? path : "/" + path;
+    return apiOrigin ? apiOrigin + p : p;
+  }
   const uploadSlots = {};
 
   function initGroupSlots(base, initialFields) {
@@ -446,11 +455,11 @@
     if (!confirm("Remove this uploaded file?")) return;
     try {
       setSaveStatus("Removing file…", "busy");
-      const res = await fetch("/o/" + encodeURIComponent(token) + "/remove-upload", {
+      const res = await fetch(apiUrl("/o/" + encodeURIComponent(token) + "/remove-upload"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field }),
-        credentials: "same-origin",
+        credentials: "omit",
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
@@ -495,6 +504,7 @@
         body: blob,
         headers: { "Content-Type": "application/octet-stream" },
         signal: controller.signal,
+        credentials: "omit",
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
@@ -537,7 +547,7 @@
         total_chunks: String(totalChunks),
         filename: file.name,
       });
-      const url = "/o/" + encodeURIComponent(token) + "/upload-chunk?" + qs.toString();
+      const url = apiUrl("/o/" + encodeURIComponent(token) + "/upload-chunk") + "?" + qs.toString();
       let data = null;
       let lastErr = null;
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -927,11 +937,11 @@
     autosaveInFlight = true;
     setSaveStatus("Saving…", "busy");
     try {
-      const res = await fetch("/o/" + encodeURIComponent(token) + "/autosave", {
+      const res = await fetch(apiUrl("/o/" + encodeURIComponent(token) + "/autosave"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(collectAutosavePayload()),
-        credentials: "same-origin",
+        credentials: "omit",
         cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
@@ -1015,11 +1025,11 @@
           if ((el.type === "checkbox" || el.type === "radio") && !el.checked) return;
           fd.append(el.name, el.value);
         });
-        const saveUrl = formEl.getAttribute("action") || ("/o/" + encodeURIComponent(token));
+        const saveUrl = formEl.getAttribute("action") || apiUrl("/o/" + encodeURIComponent(token));
         const res = await fetch(saveUrl, {
           method: "POST",
           body: fd,
-          credentials: "same-origin",
+          credentials: "omit",
           redirect: "follow",
           cache: "no-store",
         });
