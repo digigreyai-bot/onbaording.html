@@ -147,7 +147,7 @@
               {% for item in logo_uploads %}
               <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
                 <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
-                <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="common__logo">Remove</button>
+                <button type="button" class="upload-remove" data-remove-upload="{{ item.field }}" data-upload-base="common__logo" aria-label="Remove file" title="Remove">×</button>
               </div>
               {% endfor %}
             </div>
@@ -209,7 +209,7 @@
           {% for item in project_uploads %}
           <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
             <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
-            <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="common__projects_file">Remove</button>
+            <button type="button" class="upload-remove" data-remove-upload="{{ item.field }}" data-upload-base="common__projects_file" aria-label="Remove file" title="Remove">×</button>
           </div>
           {% endfor %}
         </div>
@@ -229,7 +229,7 @@
               {% for item in avatar_video_uploads %}
               <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
                 <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
-                <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="avatar__video">Remove</button>
+                <button type="button" class="upload-remove" data-remove-upload="{{ item.field }}" data-upload-base="avatar__video" aria-label="Remove file" title="Remove">×</button>
               </div>
               {% endfor %}
             </div>
@@ -254,7 +254,7 @@
               {% for item in avatar_voice_uploads %}
               <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
                 <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
-                <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="avatar__voice_sample">Remove</button>
+                <button type="button" class="upload-remove" data-remove-upload="{{ item.field }}" data-upload-base="avatar__voice_sample" aria-label="Remove file" title="Remove">×</button>
               </div>
               {% endfor %}
             </div>
@@ -311,7 +311,7 @@
           {% for item in leads_uploads %}
           <div class="flex items-center gap-2 text-xs" data-file-status="{{ item.field }}">
             <span class="text-emerald-700">Uploaded: {{ item.name }}</span>
-            <button type="button" class="upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700" data-remove-upload="{{ item.field }}" data-upload-base="marketpulse__leads">Remove</button>
+            <button type="button" class="upload-remove" data-remove-upload="{{ item.field }}" data-upload-base="marketpulse__leads" aria-label="Remove file" title="Remove">×</button>
           </div>
           {% endfor %}
         </div>
@@ -419,11 +419,12 @@
       label.className = "text-emerald-700 upload-label";
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className =
-        "upload-remove shrink-0 px-2 py-0.5 rounded border border-aa-line text-aa-navy hover:bg-red-50 hover:border-red-200 hover:text-red-700";
+      btn.className = "upload-remove";
       btn.setAttribute("data-remove-upload", field);
       btn.setAttribute("data-upload-base", base);
-      btn.textContent = "Remove";
+      btn.setAttribute("aria-label", "Remove file");
+      btn.setAttribute("title", "Remove");
+      btn.textContent = "×";
       row.appendChild(label);
       row.appendChild(btn);
       list.appendChild(row);
