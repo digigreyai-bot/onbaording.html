@@ -200,26 +200,45 @@
       background: #e8eef3;
     }
     .upload-remove {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      position: relative;
+      display: inline-block;
       width: 1.25rem;
       height: 1.25rem;
       padding: 0;
       border: 1px solid #d7e2ea;
       border-radius: 999px;
       background: #fff;
-      color: #5b6b7c;
-      font-size: 0.95rem;
-      line-height: 1;
-      font-weight: 600;
+      color: transparent;
+      font-size: 0;
+      line-height: 0;
       flex-shrink: 0;
       cursor: pointer;
+      vertical-align: middle;
+    }
+    .upload-remove::before,
+    .upload-remove::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0.55rem;
+      height: 1.5px;
+      background: #5b6b7c;
+      border-radius: 1px;
+    }
+    .upload-remove::before {
+      transform: translate(-50%, -50%) rotate(45deg);
+    }
+    .upload-remove::after {
+      transform: translate(-50%, -50%) rotate(-45deg);
     }
     .upload-remove:hover {
       background: #fef2f2;
       border-color: #fecaca;
-      color: #b91c1c;
+    }
+    .upload-remove:hover::before,
+    .upload-remove:hover::after {
+      background: #b91c1c;
     }
   </style>
   {% block head %}{% endblock %}
