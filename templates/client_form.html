@@ -702,12 +702,26 @@
     let chunks = [];
     let recordedBlob = null;
     let recordedUrl = null;
+    let drawRaf = 0;
+    let canvasStream = null;
 
     function setStatus(msg) {
       if (statusEl) statusEl.textContent = msg || "";
     }
 
+    function stopCanvasPipeline() {
+      if (drawRaf) {
+        cancelAnimationFrame(drawRaf);
+        drawRaf = 0;
+      }
+      if (canvasStream) {
+        canvasStream.getTracks().forEach((t) => t.stop());
+        canvasStream = null;
+      }
+    }
+
     function cleanupStream() {
+      stopCanvasPipeline();
       if (mediaStream) {
         mediaStream.getTracks().forEach((t) => t.stop());
         mediaStream = null;
@@ -716,6 +730,35 @@
         livePreview.srcObject = null;
         livePreview.classList.add("hidden");
       }
+    }
+
+    /** Mirror front-camera frames so preview + saved video match (not inverted). */
+    function buildMirroredRecordStream(stream, previewEl) {
+      const track = stream.getVideoTracks()[0];
+      const settings = track && track.getSettings ? track.getSettings() : {};
+      const width = settings.width || 1280;
+      const height = settings.height || 720;
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      const draw = () => {
+        if (!previewEl || previewEl.readyState < 2) {
+          drawRaf = requestAnimationFrame(draw);
+          return;
+        }
+        ctx.save();
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(previewEl, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+        drawRaf = requestAnimationFrame(draw);
+      };
+      drawRaf = requestAnimationFrame(draw);
+      const out = canvas.captureStream(30);
+      stream.getAudioTracks().forEach((t) => out.addTrack(t));
+      canvasStream = out;
+      return out;
     }
 
     function resetPlayback() {
@@ -768,7 +811,7 @@
       try {
         mediaStream = await navigator.mediaDevices.getUserMedia(
           kind === "video"
-            ? { video: true, audio: true }
+            ? { video: { facingMode: "user" }, audio: true }
             : {
                 audio: {
                   echoCancellation: true,
@@ -786,19 +829,26 @@
         return;
       }
 
+      let recordStream = mediaStream;
       if (kind === "video" && livePreview) {
         livePreview.srcObject = mediaStream;
         livePreview.classList.remove("hidden");
         livePreview.muted = true;
-        livePreview.play().catch(() => {});
+        await livePreview.play().catch(() => {});
+        // Mirror into canvas so preview CSS and the uploaded file match.
+        try {
+          recordStream = buildMirroredRecordStream(mediaStream, livePreview);
+        } catch (_) {
+          recordStream = mediaStream;
+        }
       }
 
       chunks = [];
       const mimeType = pickRecorderMime(kind);
       try {
         mediaRecorder = mimeType
-          ? new MediaRecorder(mediaStream, { mimeType })
-          : new MediaRecorder(mediaStream);
+          ? new MediaRecorder(recordStream, { mimeType })
+          : new MediaRecorder(recordStream);
       } catch (err) {
         cleanupStream();
         setStatus((err && err.message) || "Could not start recorder.");

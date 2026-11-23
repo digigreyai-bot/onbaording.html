@@ -195,6 +195,11 @@
       border-radius: 0.65rem;
       background: #0b1f3a;
     }
+    /* Selfie preview only: mirror so motion matches a bathroom mirror.
+       Saved recording stays unmirrored (correct for Avatar Studio viewers). */
+    .live-recorder .recorder-preview {
+      transform: scaleX(-1);
+    }
     .live-recorder .recorder-playback-audio {
       max-height: 56px;
       background: #e8eef3;
