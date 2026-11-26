@@ -262,8 +262,15 @@
             <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
             <div class="live-recorder mt-3" data-recorder="audio" data-upload-base="avatar__voice_sample">
               <p class="text-xs font-semibold text-aa-navy mb-2">Or record live with your microphone</p>
-              {# video tag: Chrome often plays MediaRecorder audio/webm silently in <audio> #}
-              <video class="recorder-playback recorder-playback-audio hidden w-full" playsinline controls></video>
+              {# Web Audio preview: HTML <audio>/<video> often plays MediaRecorder webm with no sound in Chrome #}
+              <div class="recorder-playback recorder-playback-audio hidden w-full">
+                <div class="flex flex-wrap items-center gap-2">
+                  <button type="button" class="recorder-play-preview px-3 py-2 rounded-lg border border-aa-teal text-xs font-semibold text-aa-tealDeep bg-white">Play preview</button>
+                  <button type="button" class="recorder-stop-preview px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop preview</button>
+                  <span class="recorder-preview-meta text-xs text-aa-muted"></span>
+                </div>
+                <audio class="recorder-playback-media mt-2 w-full" controls playsinline preload="auto"></audio>
+              </div>
               <div class="flex flex-wrap gap-2 mt-2">
                 <button type="button" class="recorder-start px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">Start voice recording</button>
                 <button type="button" class="recorder-stop px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop</button>
@@ -695,6 +702,12 @@
     const statusEl = root.querySelector(".recorder-status");
     const livePreview = root.querySelector(".recorder-preview");
     const playback = root.querySelector(".recorder-playback");
+    const playbackMedia =
+      root.querySelector(".recorder-playback-media") ||
+      (playback && playback.tagName === "VIDEO" ? playback : null);
+    const playPreviewBtn = root.querySelector(".recorder-play-preview");
+    const stopPreviewBtn = root.querySelector(".recorder-stop-preview");
+    const previewMeta = root.querySelector(".recorder-preview-meta");
     if (!startBtn || !stopBtn || !useBtn || !discardBtn || !uploadBase) return;
 
     let mediaStream = null;
@@ -704,6 +717,9 @@
     let recordedUrl = null;
     let drawRaf = 0;
     let canvasStream = null;
+    let audioCtx = null;
+    let audioSource = null;
+    let decodedBuffer = null;
 
     function setStatus(msg) {
       if (statusEl) statusEl.textContent = msg || "";
@@ -729,6 +745,31 @@
       if (livePreview) {
         livePreview.srcObject = null;
         livePreview.classList.add("hidden");
+      }
+    }
+
+    function stopWebAudioPreview() {
+      if (audioSource) {
+        try {
+          audioSource.stop();
+        } catch (_) {}
+        try {
+          audioSource.disconnect();
+        } catch (_) {}
+        audioSource = null;
+      }
+      if (stopPreviewBtn) stopPreviewBtn.classList.add("hidden");
+      if (playPreviewBtn) playPreviewBtn.classList.remove("hidden");
+    }
+
+    function closeAudioCtx() {
+      stopWebAudioPreview();
+      decodedBuffer = null;
+      if (audioCtx) {
+        try {
+          audioCtx.close();
+        } catch (_) {}
+        audioCtx = null;
       }
     }
 
@@ -762,43 +803,141 @@
     }
 
     function resetPlayback() {
+      closeAudioCtx();
       if (recordedUrl) {
         URL.revokeObjectURL(recordedUrl);
         recordedUrl = null;
       }
       recordedBlob = null;
       chunks = [];
-      if (playback) {
+      if (playbackMedia) {
         try {
-          playback.pause();
+          playbackMedia.pause();
         } catch (_) {}
-        playback.removeAttribute("src");
-        playback.load();
-        playback.classList.add("hidden");
+        playbackMedia.removeAttribute("src");
+        while (playbackMedia.firstChild) playbackMedia.removeChild(playbackMedia.firstChild);
+        playbackMedia.load();
       }
+      if (playback) playback.classList.add("hidden");
+      if (previewMeta) previewMeta.textContent = "";
       useBtn.classList.add("hidden");
       discardBtn.classList.add("hidden");
     }
 
-    function showPlayback(blob, type) {
+    async function decodeForWebAudio(blob) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!audioCtx || audioCtx.state === "closed") {
+        audioCtx = new AC();
+      }
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume().catch(() => {});
+      }
+      const raw = await blob.arrayBuffer();
+      // copy: decodeAudioData may detach the buffer
+      const copy = raw.slice(0);
+      try {
+        return await audioCtx.decodeAudioData(copy);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    async function playViaWebAudio() {
+      if (!recordedBlob) return;
+      stopWebAudioPreview();
+      if (!decodedBuffer) {
+        decodedBuffer = await decodeForWebAudio(recordedBlob);
+      }
+      if (!decodedBuffer || !audioCtx) {
+        setStatus("Could not decode preview audio. Try another browser, or use the native player below.");
+        return;
+      }
+      if (audioCtx.state === "suspended") {
+        await audioCtx.resume().catch(() => {});
+      }
+      audioSource = audioCtx.createBufferSource();
+      audioSource.buffer = decodedBuffer;
+      audioSource.connect(audioCtx.destination);
+      audioSource.onended = () => {
+        audioSource = null;
+        if (stopPreviewBtn) stopPreviewBtn.classList.add("hidden");
+        if (playPreviewBtn) playPreviewBtn.classList.remove("hidden");
+      };
+      audioSource.start(0);
+      if (playPreviewBtn) playPreviewBtn.classList.add("hidden");
+      if (stopPreviewBtn) stopPreviewBtn.classList.remove("hidden");
+      setStatus("Playing preview…");
+    }
+
+    async function showPlayback(blob, type) {
       if (!playback) return;
       recordedBlob = blob;
       if (recordedUrl) URL.revokeObjectURL(recordedUrl);
       recordedUrl = URL.createObjectURL(blob);
       playback.classList.remove("hidden");
-      playback.muted = false;
-      playback.defaultMuted = false;
-      playback.volume = 1;
-      playback.src = recordedUrl;
-      playback.load();
-      const tryPlay = () => {
-        playback.muted = false;
-        playback.volume = 1;
-        const p = playback.play();
-        if (p && p.catch) p.catch(() => {});
-      };
-      playback.addEventListener("loadeddata", tryPlay, { once: true });
-      setTimeout(tryPlay, 200);
+
+      if (kind === "audio") {
+        if (previewMeta) {
+          const kb = Math.max(1, Math.round(blob.size / 1024));
+          previewMeta.textContent = kb + " KB · " + (type || blob.type || "audio");
+        }
+        if (playbackMedia) {
+          playbackMedia.muted = false;
+          playbackMedia.defaultMuted = false;
+          playbackMedia.volume = 1;
+          playbackMedia.removeAttribute("src");
+          while (playbackMedia.firstChild) playbackMedia.removeChild(playbackMedia.firstChild);
+          const source = document.createElement("source");
+          source.src = recordedUrl;
+          source.type = (type || blob.type || "audio/webm").split(";")[0];
+          playbackMedia.appendChild(source);
+          playbackMedia.load();
+        }
+        decodedBuffer = await decodeForWebAudio(blob);
+        if (decodedBuffer) {
+          const secs = Math.max(1, Math.round(decodedBuffer.duration));
+          if (previewMeta) {
+            previewMeta.textContent =
+              secs + "s · ready. Use Play preview if the bar has no sound.";
+          }
+          // Auto-play via Web Audio (user just clicked Stop, so gesture is fresh)
+          playViaWebAudio().catch(() => {});
+        } else {
+          setStatus("Recording saved. Press play on the player if preview does not start.");
+        }
+        return;
+      }
+
+      if (playbackMedia) {
+        playbackMedia.muted = false;
+        playbackMedia.defaultMuted = false;
+        playbackMedia.volume = 1;
+        playbackMedia.src = recordedUrl;
+        playbackMedia.load();
+        const tryPlay = () => {
+          playbackMedia.muted = false;
+          playbackMedia.volume = 1;
+          const p = playbackMedia.play();
+          if (p && p.catch) p.catch(() => {});
+        };
+        playbackMedia.addEventListener("loadeddata", tryPlay, { once: true });
+        setTimeout(tryPlay, 200);
+      }
+    }
+
+    if (playPreviewBtn) {
+      playPreviewBtn.addEventListener("click", () => {
+        playViaWebAudio().catch((err) => {
+          setStatus((err && err.message) || "Could not play preview.");
+        });
+      });
+    }
+    if (stopPreviewBtn) {
+      stopPreviewBtn.addEventListener("click", () => {
+        stopWebAudioPreview();
+        setStatus("Preview stopped.");
+      });
     }
 
     startBtn.addEventListener("click", async () => {
@@ -827,6 +966,18 @@
             : (err && err.message) || "Could not access camera/microphone.")
         );
         return;
+      }
+
+      if (kind === "audio") {
+        const tracks = mediaStream.getAudioTracks();
+        if (!tracks.length || tracks.every((t) => t.muted || t.readyState !== "live")) {
+          cleanupStream();
+          setStatus("No live microphone track. Check OS/browser mic settings and try again.");
+          return;
+        }
+        tracks.forEach((t) => {
+          t.enabled = true;
+        });
       }
 
       let recordStream = mediaStream;
@@ -870,7 +1021,15 @@
           setStatus("No audio captured. Check your microphone and try again.");
           return;
         }
-        const blob = new Blob(chunks, { type: type.split(";")[0] || type });
+        // Keep full MIME (incl. codecs) so browsers can decode the blob.
+        const blob = new Blob(chunks, { type: type || "audio/webm" });
+        if (blob.size < 256) {
+          cleanupStream();
+          startBtn.classList.remove("hidden");
+          stopBtn.classList.add("hidden");
+          setStatus("Recording was too short or empty. Hold a few seconds and speak clearly.");
+          return;
+        }
         cleanupStream();
         showPlayback(blob, type);
         startBtn.classList.remove("hidden");
@@ -879,7 +1038,7 @@
         discardBtn.classList.remove("hidden");
         setStatus(
           kind === "audio"
-            ? "Recording ready. Turn up volume if needed, then use or discard."
+            ? "Recording ready. Use Play preview to listen, then use or discard."
             : "Recording ready. Preview, then use or discard."
         );
       };
