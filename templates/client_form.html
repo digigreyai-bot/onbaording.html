@@ -262,15 +262,8 @@
             <p class="text-xs text-aa-muted mt-1">Clear voice recording, about 30–60 seconds. Max {{ max_files_per_field }} files.</p>
             <div class="live-recorder mt-3" data-recorder="audio" data-upload-base="avatar__voice_sample">
               <p class="text-xs font-semibold text-aa-navy mb-2">Or record live with your microphone</p>
-              {# Web Audio preview: HTML <audio>/<video> often plays MediaRecorder webm with no sound in Chrome #}
-              <div class="recorder-playback recorder-playback-audio hidden w-full">
-                <div class="flex flex-wrap items-center gap-2">
-                  <button type="button" class="recorder-play-preview px-3 py-2 rounded-lg border border-aa-teal text-xs font-semibold text-aa-tealDeep bg-white">Play preview</button>
-                  <button type="button" class="recorder-stop-preview px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop preview</button>
-                  <span class="recorder-preview-meta text-xs text-aa-muted"></span>
-                </div>
-                <audio class="recorder-playback-media mt-2 w-full" controls playsinline preload="auto"></audio>
-              </div>
+              {# Native controls; Web Audio drives sound when HTML webm playback is silent in Chrome #}
+              <audio class="recorder-playback recorder-playback-audio recorder-playback-media hidden w-full" controls playsinline preload="auto"></audio>
               <div class="flex flex-wrap gap-2 mt-2">
                 <button type="button" class="recorder-start px-3 py-2 rounded-lg btn-brand text-white text-xs font-semibold">Start voice recording</button>
                 <button type="button" class="recorder-stop px-3 py-2 rounded-lg border border-aa-line text-xs font-semibold text-aa-navy bg-white hidden">Stop</button>
@@ -704,10 +697,9 @@
     const playback = root.querySelector(".recorder-playback");
     const playbackMedia =
       root.querySelector(".recorder-playback-media") ||
-      (playback && playback.tagName === "VIDEO" ? playback : null);
-    const playPreviewBtn = root.querySelector(".recorder-play-preview");
-    const stopPreviewBtn = root.querySelector(".recorder-stop-preview");
-    const previewMeta = root.querySelector(".recorder-preview-meta");
+      (playback && (playback.tagName === "VIDEO" || playback.tagName === "AUDIO")
+        ? playback
+        : null);
     if (!startBtn || !stopBtn || !useBtn || !discardBtn || !uploadBase) return;
 
     let mediaStream = null;
@@ -720,6 +712,8 @@
     let audioCtx = null;
     let audioSource = null;
     let decodedBuffer = null;
+    let webAudioStartedAt = 0;
+    let syncUiFromWebAudio = false;
 
     function setStatus(msg) {
       if (statusEl) statusEl.textContent = msg || "";
@@ -758,8 +752,7 @@
         } catch (_) {}
         audioSource = null;
       }
-      if (stopPreviewBtn) stopPreviewBtn.classList.add("hidden");
-      if (playPreviewBtn) playPreviewBtn.classList.remove("hidden");
+      webAudioStartedAt = 0;
     }
 
     function closeAudioCtx() {
@@ -812,14 +805,15 @@
       chunks = [];
       if (playbackMedia) {
         try {
+          syncUiFromWebAudio = true;
           playbackMedia.pause();
         } catch (_) {}
         playbackMedia.removeAttribute("src");
         while (playbackMedia.firstChild) playbackMedia.removeChild(playbackMedia.firstChild);
         playbackMedia.load();
+        syncUiFromWebAudio = false;
       }
       if (playback) playback.classList.add("hidden");
-      if (previewMeta) previewMeta.textContent = "";
       useBtn.classList.add("hidden");
       discardBtn.classList.add("hidden");
     }
@@ -834,7 +828,6 @@
         await audioCtx.resume().catch(() => {});
       }
       const raw = await blob.arrayBuffer();
-      // copy: decodeAudioData may detach the buffer
       const copy = raw.slice(0);
       try {
         return await audioCtx.decodeAudioData(copy);
@@ -843,31 +836,37 @@
       }
     }
 
-    async function playViaWebAudio() {
+    async function playViaWebAudio(offsetSec) {
       if (!recordedBlob) return;
       stopWebAudioPreview();
       if (!decodedBuffer) {
         decodedBuffer = await decodeForWebAudio(recordedBlob);
       }
-      if (!decodedBuffer || !audioCtx) {
-        setStatus("Could not decode preview audio. Try another browser, or use the native player below.");
-        return;
-      }
+      if (!decodedBuffer || !audioCtx) return false;
       if (audioCtx.state === "suspended") {
         await audioCtx.resume().catch(() => {});
       }
+      const startAt = Math.max(0, Math.min(Number(offsetSec) || 0, decodedBuffer.duration - 0.01));
       audioSource = audioCtx.createBufferSource();
       audioSource.buffer = decodedBuffer;
       audioSource.connect(audioCtx.destination);
       audioSource.onended = () => {
         audioSource = null;
-        if (stopPreviewBtn) stopPreviewBtn.classList.add("hidden");
-        if (playPreviewBtn) playPreviewBtn.classList.remove("hidden");
+        webAudioStartedAt = 0;
+        if (playbackMedia) {
+          syncUiFromWebAudio = true;
+          try {
+            playbackMedia.pause();
+            playbackMedia.currentTime = decodedBuffer ? decodedBuffer.duration : playbackMedia.currentTime;
+          } catch (_) {}
+          syncUiFromWebAudio = false;
+        }
+        setStatus("Recording ready. Preview, then use or discard.");
       };
-      audioSource.start(0);
-      if (playPreviewBtn) playPreviewBtn.classList.add("hidden");
-      if (stopPreviewBtn) stopPreviewBtn.classList.remove("hidden");
+      webAudioStartedAt = audioCtx.currentTime - startAt;
+      audioSource.start(0, startAt);
       setStatus("Playing preview…");
+      return true;
     }
 
     async function showPlayback(blob, type) {
@@ -878,13 +877,9 @@
       playback.classList.remove("hidden");
 
       if (kind === "audio") {
-        if (previewMeta) {
-          const kb = Math.max(1, Math.round(blob.size / 1024));
-          previewMeta.textContent = kb + " KB · " + (type || blob.type || "audio");
-        }
         if (playbackMedia) {
-          playbackMedia.muted = false;
-          playbackMedia.defaultMuted = false;
+          playbackMedia.muted = true; // HTML element is UI only; Web Audio outputs sound
+          playbackMedia.defaultMuted = true;
           playbackMedia.volume = 1;
           playbackMedia.removeAttribute("src");
           while (playbackMedia.firstChild) playbackMedia.removeChild(playbackMedia.firstChild);
@@ -895,16 +890,17 @@
           playbackMedia.load();
         }
         decodedBuffer = await decodeForWebAudio(blob);
-        if (decodedBuffer) {
-          const secs = Math.max(1, Math.round(decodedBuffer.duration));
-          if (previewMeta) {
-            previewMeta.textContent =
-              secs + "s · ready. Use Play preview if the bar has no sound.";
-          }
-          // Auto-play via Web Audio (user just clicked Stop, so gesture is fresh)
-          playViaWebAudio().catch(() => {});
+        if (decodedBuffer && playbackMedia) {
+          // Auto-play after Stop (user gesture still valid)
+          syncUiFromWebAudio = true;
+          try {
+            playbackMedia.currentTime = 0;
+            await playbackMedia.play().catch(() => {});
+          } catch (_) {}
+          syncUiFromWebAudio = false;
+          await playViaWebAudio(0);
         } else {
-          setStatus("Recording saved. Press play on the player if preview does not start.");
+          setStatus("Recording ready. Press play to listen, then use or discard.");
         }
         return;
       }
@@ -926,17 +922,19 @@
       }
     }
 
-    if (playPreviewBtn) {
-      playPreviewBtn.addEventListener("click", () => {
-        playViaWebAudio().catch((err) => {
-          setStatus((err && err.message) || "Could not play preview.");
-        });
+    if (kind === "audio" && playbackMedia) {
+      playbackMedia.addEventListener("play", () => {
+        if (syncUiFromWebAudio) return;
+        playViaWebAudio(playbackMedia.currentTime || 0).catch(() => {});
       });
-    }
-    if (stopPreviewBtn) {
-      stopPreviewBtn.addEventListener("click", () => {
+      playbackMedia.addEventListener("pause", () => {
+        if (syncUiFromWebAudio) return;
         stopWebAudioPreview();
-        setStatus("Preview stopped.");
+        setStatus("Recording ready. Preview, then use or discard.");
+      });
+      playbackMedia.addEventListener("seeking", () => {
+        if (syncUiFromWebAudio || !audioSource || !audioCtx) return;
+        playViaWebAudio(playbackMedia.currentTime || 0).catch(() => {});
       });
     }
 
